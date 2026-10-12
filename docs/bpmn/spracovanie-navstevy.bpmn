@@ -1,0 +1,726 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_Visit" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:dataStore id="DataStore_Analytics" name="Analytická DB" />
+  <bpmn:dataStore id="DataStore_Reviews" name="Recenzie v CRM" />
+  <bpmn:collaboration id="Collaboration_Visit">
+    <bpmn:participant id="Participant_Salon" name="Salón — spracovanie návštevy" processRef="Process_Visit" />
+    <bpmn:participant id="Participant_Analytics" name="Analytická aplikácia" processRef="Process_Analytics" />
+    <bpmn:messageFlow id="MessageFlow_VisitAnalytics" name="Údaje návštevy" sourceRef="Task_ExportVisit" targetRef="Start_Analytics" />
+    <bpmn:messageFlow id="MessageFlow_ReviewAnalytics" name="Recenzia návštevy" sourceRef="Task_ExportReview" targetRef="Start_ReviewAnalytics" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Visit" name="Spracovanie návštevy zákazníka s rezerváciou" isExecutable="false">
+    <bpmn:documentation>Proces zahŕňa iba existujúce rezervácie a dokončené služby. Nepríchod, walk-in, čiastočne vykonané alebo nevykonané služby a platba sú mimo rozsahu. Používateľ je prihlásený. Stylista spracúva iba vlastné rezervácie, admin všetky. Službu vykonáva priradený stylista. Zákazník je rolou spoločného procesu v prvej lane. Po uzavretí návštevy môže zákazník recenziu odoslať neskôr alebo vôbec; čakanie nebráni obsluhe ďalších návštev.</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_Visit">
+      <bpmn:lane id="Lane_Customer" name="Zákazník">
+        <bpmn:flowNodeRef>Task_OpenReviewForm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FillReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SubmitReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReceiveReviewFeedback</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_User" name="Stylista / admin">
+        <bpmn:flowNodeRef>Start_Visit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SelectBooking</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RecordArrival</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PerformService</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_EvaluateService</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_CRM" name="CRM / rezervačný systém">
+        <bpmn:flowNodeRef>Task_CheckAccess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Access</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DenyAccess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Denied</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SaveArrival</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidateEvaluation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Valid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CloseVisit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ExportVisit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendReviewEmail</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ReviewBranches</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_CollectReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ReviewValid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendReviewErrors</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SaveReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ConfirmReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ExportReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Visit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Timer_ReviewReminder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CheckReviewStatus</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ReminderNeeded</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendReviewReminder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Reminder</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Visit" name="Zákazník prišiel">
+      <bpmn:outgoing>Flow_Select</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_SelectBooking" name="Výber existujúcej rezervácie">
+      <bpmn:incoming>Flow_Select</bpmn:incoming>
+      <bpmn:outgoing>Flow_CheckAccess</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_CheckAccess" name="Overenie oprávnenia k rezervácii">
+      <bpmn:documentation>Stylista smie spracovať vlastnú rezerváciu. Admin smie spracovať ktorúkoľvek rezerváciu.</bpmn:documentation>
+      <bpmn:incoming>Flow_CheckAccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_AccessDecision</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_Access" name="Má používateľ oprávnenie?">
+      <bpmn:incoming>Flow_AccessDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_AccessAllowed</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AccessDenied</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_DenyAccess" name="Zobrazenie odmietnutia prístupu">
+      <bpmn:incoming>Flow_AccessDenied</bpmn:incoming>
+      <bpmn:outgoing>Flow_DeniedEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Denied" name="Prístup odmietnutý">
+      <bpmn:incoming>Flow_DeniedEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_RecordArrival" name="Potvrdenie príchodu a ručné zadanie času">
+      <bpmn:documentation>Používateľ zadá skutočný dátum a čas príchodu zákazníka, nie čas vykonania zápisu.</bpmn:documentation>
+      <bpmn:incoming>Flow_AccessAllowed</bpmn:incoming>
+      <bpmn:outgoing>Flow_SaveArrival</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_SaveArrival" name="Uloženie príchodu a výpočet meškania">
+      <bpmn:documentation>CRM vypočíta meškanie v minútach ako max(0, skutočný príchod − plánovaný začiatok). Skorší príchod má meškanie 0. Meškanie nemení ďalší priebeh procesu.</bpmn:documentation>
+      <bpmn:incoming>Flow_SaveArrival</bpmn:incoming>
+      <bpmn:outgoing>Flow_PerformService</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_PerformService" name="Vykonanie služby priradeným stylistom">
+      <bpmn:incoming>Flow_PerformService</bpmn:incoming>
+      <bpmn:outgoing>Flow_EvaluateService</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_EvaluateService" name="Zápis vyhodnotenia dokončenej služby">
+      <bpmn:documentation>Povinné údaje: výsledok „Dokončená“, skutočné trvanie ručne v minútach a konečná cena. Poznámka stylistu je voliteľná. Spokojnosť zadáva zákazník v následnej recenzii, nie stylista. Pri oprave používateľ opraví údaje podľa chýb validácie.</bpmn:documentation>
+      <bpmn:incoming>Flow_EvaluateService</bpmn:incoming>
+      <bpmn:incoming>Flow_CorrectEvaluation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ValidateEvaluation</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ValidateEvaluation" name="Kontrola vyhodnotenia služby">
+      <bpmn:documentation>Kontrola povinných údajov, kladného trvania a nezápornej ceny. Pri chybe CRM zobrazí informácie na opravu. Spokojnosť sa kontroluje samostatne pri recenzii.</bpmn:documentation>
+      <bpmn:incoming>Flow_ValidateEvaluation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ValidationDecision</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_Valid" name="Sú údaje platné?">
+      <bpmn:incoming>Flow_ValidationDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_ValidEvaluation</bpmn:outgoing>
+      <bpmn:outgoing>Flow_CorrectEvaluation</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_CloseVisit" name="Uloženie vyhodnotenia a uzavretie návštevy">
+      <bpmn:documentation>CRM uloží vyhodnotenie a označí rezerváciu ako dokončenú. Uzavretie neznamená evidenciu úhrady.</bpmn:documentation>
+      <bpmn:incoming>Flow_ValidEvaluation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ExportVisit</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ExportVisit" name="Odoslanie údajov návštevy do analytickej aplikácie">
+      <bpmn:documentation>Diagram nešpecifikuje spôsob prenosu ani spracovanie zlyhania prenosu.</bpmn:documentation>
+      <bpmn:incoming>Flow_ExportVisit</bpmn:incoming>
+      <bpmn:outgoing>Flow_SendReviewEmail</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_SendReviewEmail" name="Odoslanie e-mailu s formulárom na recenziu">
+      <bpmn:incoming>Flow_SendReviewEmail</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewBranches</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:parallelGateway id="Gateway_ReviewBranches">
+      <bpmn:incoming>Flow_ReviewBranches</bpmn:incoming>
+      <bpmn:outgoing>Flow_OpenReviewForm</bpmn:outgoing>
+      <bpmn:outgoing>Flow_WaitReminder</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:task id="Task_OpenReviewForm" name="Otvorenie formulára z e-mailu">
+      <bpmn:incoming>Flow_OpenReviewForm</bpmn:incoming>
+      <bpmn:outgoing>Flow_FillReview</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_FillReview" name="Zadanie hodnotenia 1–5 a voliteľného komentára">
+      <bpmn:documentation>Hodnotenie 1–5 je povinné, komentár voliteľný. Zákazník môže formulár vyplniť neskôr alebo vôbec. Jedna pripomienka po 24 hodinách iba zopakuje odkaz na rovnaký formulár.</bpmn:documentation>
+      <bpmn:incoming>Flow_FillReview</bpmn:incoming>
+      <bpmn:incoming>Flow_ReviewRetry</bpmn:incoming>
+      <bpmn:outgoing>Flow_SubmitReview</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_SubmitReview" name="Odoslanie recenzie cez formulár">
+      <bpmn:incoming>Flow_SubmitReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_CollectReview</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:subProcess id="SubProcess_CollectReview" name="Kontrola recenzie">
+      <bpmn:incoming>Flow_CollectReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewDecision</bpmn:outgoing>
+      <bpmn:startEvent id="Start_CollectReview">
+        <bpmn:outgoing>Flow_ValidateReview</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:task id="Task_ValidateReview" name="Kontrola hodnotenia a väzby na návštevu">
+        <bpmn:documentation>Kontrola povinného celočíselného hodnotenia od 1 do 5 a väzby na dokončenú návštevu. Komentár je voliteľný. Výsledok kontroly je vstupom do následnej rozhodovacej brány.</bpmn:documentation>
+        <bpmn:incoming>Flow_ValidateReview</bpmn:incoming>
+        <bpmn:outgoing>Flow_CollectedReview</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:endEvent id="End_CollectReview">
+        <bpmn:incoming>Flow_CollectedReview</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_ValidateReview" sourceRef="Start_CollectReview" targetRef="Task_ValidateReview" />
+      <bpmn:sequenceFlow id="Flow_CollectedReview" sourceRef="Task_ValidateReview" targetRef="End_CollectReview" />
+    </bpmn:subProcess>
+    <bpmn:exclusiveGateway id="Gateway_ReviewValid" name="Je recenzia platná?">
+      <bpmn:incoming>Flow_ReviewDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewValid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ReviewInvalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_SendReviewErrors" name="Zobrazenie chýb na opravu">
+      <bpmn:incoming>Flow_ReviewInvalid</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewRetry</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_SaveReview" name="Uloženie platnej recenzie v CRM">
+      <bpmn:incoming>Flow_ReviewValid</bpmn:incoming>
+      <bpmn:outgoing>Flow_ConfirmReview</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="Association_SaveReview">
+        <bpmn:targetRef>DataStoreReference_Reviews</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:task id="Task_ConfirmReview" name="Zobrazenie potvrdenia prijatia recenzie">
+      <bpmn:incoming>Flow_ConfirmReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewFeedback</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ReceiveReviewFeedback" name="Oboznámenie sa s potvrdením recenzie">
+      <bpmn:incoming>Flow_ReviewFeedback</bpmn:incoming>
+      <bpmn:outgoing>Flow_VisitEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ExportReview" name="Odoslanie recenzie do analytickej aplikácie">
+      <bpmn:incoming>Flow_VisitEnd</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewExportEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Visit" name="Recenzia spracovaná">
+      <bpmn:documentation>Ukončí túto konkrétnu návštevu vrátane prípadného čakania na pripomienku. Proces samostatnej analytickej aplikácie pokračuje nezávisle.</bpmn:documentation>
+      <bpmn:incoming>Flow_ReviewExportEnd</bpmn:incoming>
+      <bpmn:terminateEventDefinition id="Terminate_ReviewComplete" />
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="Timer_ReviewReminder" name="24 hodín od prvého e-mailu">
+      <bpmn:incoming>Flow_WaitReminder</bpmn:incoming>
+      <bpmn:outgoing>Flow_CheckReviewStatus</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_ReviewReminder">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_CheckReviewStatus" name="Kontrola prijatia platnej recenzie">
+      <bpmn:documentation>Pred odoslaním pripomienky CRM overí aktuálny stav recenzie. Ak už bola platná recenzia prijatá, pripomienka sa neodošle. Kontrola stavu a rozhodnutie o odoslaní zohľadňujú súbežné prijatie recenzie.</bpmn:documentation>
+      <bpmn:incoming>Flow_CheckReviewStatus</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReminderDecision</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_ReminderNeeded" name="Chýba platná recenzia?">
+      <bpmn:incoming>Flow_ReminderDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewReminder</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SkipReminder</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_SendReviewReminder" name="Odoslanie jednej pripomienky zákazníkovi">
+      <bpmn:documentation>CRM odošle iba jednu pripomienku na zákazníkov e-mail. Ďalšie pripomienky sa neposielajú. Zákazník môže naďalej použiť pôvodný formulár, preto tu nevzniká ďalší token v jeho lane.</bpmn:documentation>
+      <bpmn:incoming>Flow_ReviewReminder</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReminderEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Reminder" name="Kontrola pripomienky ukončená">
+      <bpmn:incoming>Flow_ReminderEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_SkipReminder</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Select" sourceRef="Start_Visit" targetRef="Task_SelectBooking" />
+    <bpmn:sequenceFlow id="Flow_CheckAccess" sourceRef="Task_SelectBooking" targetRef="Task_CheckAccess" />
+    <bpmn:sequenceFlow id="Flow_AccessDecision" sourceRef="Task_CheckAccess" targetRef="Gateway_Access" />
+    <bpmn:sequenceFlow id="Flow_AccessAllowed" name="Áno" sourceRef="Gateway_Access" targetRef="Task_RecordArrival" />
+    <bpmn:sequenceFlow id="Flow_AccessDenied" name="Nie" sourceRef="Gateway_Access" targetRef="Task_DenyAccess" />
+    <bpmn:sequenceFlow id="Flow_DeniedEnd" sourceRef="Task_DenyAccess" targetRef="End_Denied" />
+    <bpmn:sequenceFlow id="Flow_SaveArrival" sourceRef="Task_RecordArrival" targetRef="Task_SaveArrival" />
+    <bpmn:sequenceFlow id="Flow_PerformService" sourceRef="Task_SaveArrival" targetRef="Task_PerformService" />
+    <bpmn:sequenceFlow id="Flow_EvaluateService" sourceRef="Task_PerformService" targetRef="Task_EvaluateService" />
+    <bpmn:sequenceFlow id="Flow_ValidateEvaluation" sourceRef="Task_EvaluateService" targetRef="Task_ValidateEvaluation" />
+    <bpmn:sequenceFlow id="Flow_ValidationDecision" sourceRef="Task_ValidateEvaluation" targetRef="Gateway_Valid" />
+    <bpmn:sequenceFlow id="Flow_ValidEvaluation" name="Áno" sourceRef="Gateway_Valid" targetRef="Task_CloseVisit" />
+    <bpmn:sequenceFlow id="Flow_CorrectEvaluation" name="Nie — opraviť údaje" sourceRef="Gateway_Valid" targetRef="Task_EvaluateService" />
+    <bpmn:sequenceFlow id="Flow_ExportVisit" sourceRef="Task_CloseVisit" targetRef="Task_ExportVisit" />
+    <bpmn:sequenceFlow id="Flow_SendReviewEmail" sourceRef="Task_ExportVisit" targetRef="Task_SendReviewEmail" />
+    <bpmn:sequenceFlow id="Flow_ReviewBranches" sourceRef="Task_SendReviewEmail" targetRef="Gateway_ReviewBranches" />
+    <bpmn:sequenceFlow id="Flow_OpenReviewForm" sourceRef="Gateway_ReviewBranches" targetRef="Task_OpenReviewForm" />
+    <bpmn:sequenceFlow id="Flow_FillReview" sourceRef="Task_OpenReviewForm" targetRef="Task_FillReview" />
+    <bpmn:sequenceFlow id="Flow_SubmitReview" sourceRef="Task_FillReview" targetRef="Task_SubmitReview" />
+    <bpmn:sequenceFlow id="Flow_CollectReview" sourceRef="Task_SubmitReview" targetRef="SubProcess_CollectReview" />
+    <bpmn:sequenceFlow id="Flow_ReviewDecision" sourceRef="SubProcess_CollectReview" targetRef="Gateway_ReviewValid" />
+    <bpmn:sequenceFlow id="Flow_ReviewValid" name="Áno" sourceRef="Gateway_ReviewValid" targetRef="Task_SaveReview" />
+    <bpmn:sequenceFlow id="Flow_ReviewInvalid" name="Nie" sourceRef="Gateway_ReviewValid" targetRef="Task_SendReviewErrors" />
+    <bpmn:sequenceFlow id="Flow_ReviewRetry" sourceRef="Task_SendReviewErrors" targetRef="Task_FillReview" />
+    <bpmn:sequenceFlow id="Flow_ConfirmReview" sourceRef="Task_SaveReview" targetRef="Task_ConfirmReview" />
+    <bpmn:sequenceFlow id="Flow_ReviewFeedback" sourceRef="Task_ConfirmReview" targetRef="Task_ReceiveReviewFeedback" />
+    <bpmn:sequenceFlow id="Flow_VisitEnd" sourceRef="Task_ReceiveReviewFeedback" targetRef="Task_ExportReview" />
+    <bpmn:sequenceFlow id="Flow_ReviewExportEnd" sourceRef="Task_ExportReview" targetRef="End_Visit" />
+    <bpmn:sequenceFlow id="Flow_WaitReminder" sourceRef="Gateway_ReviewBranches" targetRef="Timer_ReviewReminder" />
+    <bpmn:sequenceFlow id="Flow_CheckReviewStatus" sourceRef="Timer_ReviewReminder" targetRef="Task_CheckReviewStatus" />
+    <bpmn:sequenceFlow id="Flow_ReminderDecision" sourceRef="Task_CheckReviewStatus" targetRef="Gateway_ReminderNeeded" />
+    <bpmn:sequenceFlow id="Flow_ReviewReminder" name="Áno" sourceRef="Gateway_ReminderNeeded" targetRef="Task_SendReviewReminder" />
+    <bpmn:sequenceFlow id="Flow_SkipReminder" name="Nie" sourceRef="Gateway_ReminderNeeded" targetRef="End_Reminder" />
+    <bpmn:sequenceFlow id="Flow_ReminderEnd" sourceRef="Task_SendReviewReminder" targetRef="End_Reminder" />
+    <bpmn:dataStoreReference id="DataStoreReference_Reviews" name="Recenzie v CRM" dataStoreRef="DataStore_Reviews" />
+  </bpmn:process>
+  <bpmn:process id="Process_Analytics" name="Zápis údajov návštevy a recenzie do analytickej DB" isExecutable="false">
+    <bpmn:startEvent id="Start_Analytics" name="Prijaté údaje návštevy">
+      <bpmn:outgoing>Flow_AnalyticsWrite</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_Analytics" />
+    </bpmn:startEvent>
+    <bpmn:task id="Task_WriteAnalytics" name="Zápis údajov návštevy do analytickej DB">
+      <bpmn:incoming>Flow_AnalyticsWrite</bpmn:incoming>
+      <bpmn:outgoing>Flow_AnalyticsEnd</bpmn:outgoing>
+      <bpmn:ioSpecification id="IO_ExportVisit">
+        <bpmn:dataOutput id="DataOutput_Visit" name="Údaje návštevy" />
+        <bpmn:inputSet id="InputSet_ExportVisit" />
+        <bpmn:outputSet id="OutputSet_ExportVisit">
+          <bpmn:dataOutputRefs>DataOutput_Visit</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Association_VisitAnalytics">
+        <bpmn:sourceRef>DataOutput_Visit</bpmn:sourceRef>
+        <bpmn:targetRef>DataStoreReference_Analytics</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Analytics" name="Údaje uložené">
+      <bpmn:incoming>Flow_AnalyticsEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="Start_ReviewAnalytics" name="Prijatá recenzia">
+      <bpmn:outgoing>Flow_WriteReviewAnalytics</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_ReviewAnalytics" />
+    </bpmn:startEvent>
+    <bpmn:task id="Task_WriteReviewAnalytics" name="Zápis recenzie do analytickej DB">
+      <bpmn:incoming>Flow_WriteReviewAnalytics</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewAnalyticsEnd</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="Association_ReviewAnalytics">
+        <bpmn:targetRef>DataStoreReference_Analytics</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:endEvent id="End_ReviewAnalytics" name="Recenzia uložená">
+      <bpmn:incoming>Flow_ReviewAnalyticsEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_AnalyticsWrite" sourceRef="Start_Analytics" targetRef="Task_WriteAnalytics" />
+    <bpmn:sequenceFlow id="Flow_AnalyticsEnd" sourceRef="Task_WriteAnalytics" targetRef="End_Analytics" />
+    <bpmn:sequenceFlow id="Flow_WriteReviewAnalytics" sourceRef="Start_ReviewAnalytics" targetRef="Task_WriteReviewAnalytics" />
+    <bpmn:sequenceFlow id="Flow_ReviewAnalyticsEnd" sourceRef="Task_WriteReviewAnalytics" targetRef="End_ReviewAnalytics" />
+    <bpmn:dataStoreReference id="DataStoreReference_Analytics" name="Analytická DB" dataStoreRef="DataStore_Analytics" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Visit">
+    <bpmndi:BPMNPlane id="Plane_Visit" bpmnElement="Collaboration_Visit">
+      <bpmndi:BPMNShape id="Participant_Salon_di" bpmnElement="Participant_Salon" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="4500" height="820" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_CRM_di" bpmnElement="Lane_CRM" isHorizontal="true">
+        <dc:Bounds x="190" y="520" width="4470" height="380" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_User_di" bpmnElement="Lane_User" isHorizontal="true">
+        <dc:Bounds x="190" y="300" width="4470" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Customer_di" bpmnElement="Lane_Customer" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="4470" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Visit_di" bpmnElement="Start_Visit">
+        <dc:Bounds x="240" y="392" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="218" y="435" width="80" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SelectBooking_di" bpmnElement="Task_SelectBooking">
+        <dc:Bounds x="320" y="370" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CheckAccess_di" bpmnElement="Task_CheckAccess">
+        <dc:Bounds x="510" y="560" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Access_di" bpmnElement="Gateway_Access" isMarkerVisible="true">
+        <dc:Bounds x="700" y="575" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="678" y="535" width="94" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DenyAccess_di" bpmnElement="Task_DenyAccess">
+        <dc:Bounds x="800" y="690" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Denied_di" bpmnElement="End_Denied">
+        <dc:Bounds x="990" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="963" y="755" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RecordArrival_di" bpmnElement="Task_RecordArrival">
+        <dc:Bounds x="800" y="370" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SaveArrival_di" bpmnElement="Task_SaveArrival">
+        <dc:Bounds x="1030" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PerformService_di" bpmnElement="Task_PerformService">
+        <dc:Bounds x="1260" y="370" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EvaluateService_di" bpmnElement="Task_EvaluateService">
+        <dc:Bounds x="1480" y="370" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ValidateEvaluation_di" bpmnElement="Task_ValidateEvaluation">
+        <dc:Bounds x="1700" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Valid_di" bpmnElement="Gateway_Valid" isMarkerVisible="true">
+        <dc:Bounds x="1900" y="575" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1880" y="535" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CloseVisit_di" bpmnElement="Task_CloseVisit">
+        <dc:Bounds x="2030" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ExportVisit_di" bpmnElement="Task_ExportVisit">
+        <dc:Bounds x="2250" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendReviewEmail_di" bpmnElement="Task_SendReviewEmail">
+        <dc:Bounds x="2470" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ReviewBranches_di" bpmnElement="Gateway_ReviewBranches">
+        <dc:Bounds x="2665" y="575" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OpenReviewForm_di" bpmnElement="Task_OpenReviewForm">
+        <dc:Bounds x="2770" y="150" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FillReview_di" bpmnElement="Task_FillReview">
+        <dc:Bounds x="2970" y="150" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SubmitReview_di" bpmnElement="Task_SubmitReview">
+        <dc:Bounds x="3170" y="150" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_CollectReview_di" bpmnElement="SubProcess_CollectReview" isExpanded="true">
+        <dc:Bounds x="3350" y="540" width="340" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_CollectReview_di" bpmnElement="Start_CollectReview">
+        <dc:Bounds x="3370" y="612" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ValidateReview_di" bpmnElement="Task_ValidateReview">
+        <dc:Bounds x="3420" y="590" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_CollectReview_di" bpmnElement="End_CollectReview">
+        <dc:Bounds x="3610" y="612" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ValidateReview_di" bpmnElement="Flow_ValidateReview">
+        <di:waypoint x="3406" y="630" />
+        <di:waypoint x="3420" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CollectedReview_di" bpmnElement="Flow_CollectedReview">
+        <di:waypoint x="3570" y="630" />
+        <di:waypoint x="3610" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Gateway_ReviewValid_di" bpmnElement="Gateway_ReviewValid" isMarkerVisible="true">
+        <dc:Bounds x="3750" y="575" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3730" y="535" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendReviewErrors_di" bpmnElement="Task_SendReviewErrors">
+        <dc:Bounds x="3550" y="760" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SaveReview_di" bpmnElement="Task_SaveReview">
+        <dc:Bounds x="3850" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ConfirmReview_di" bpmnElement="Task_ConfirmReview">
+        <dc:Bounds x="4050" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ReceiveReviewFeedback_di" bpmnElement="Task_ReceiveReviewFeedback">
+        <dc:Bounds x="4050" y="150" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ExportReview_di" bpmnElement="Task_ExportReview">
+        <dc:Bounds x="4270" y="560" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Visit_di" bpmnElement="End_Visit">
+        <dc:Bounds x="4500" y="582" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="4473" y="625" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Timer_ReviewReminder_di" bpmnElement="Timer_ReviewReminder">
+        <dc:Bounds x="2760" y="782" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2733" y="825" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CheckReviewStatus_di" bpmnElement="Task_CheckReviewStatus">
+        <dc:Bounds x="2830" y="760" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ReminderNeeded_di" bpmnElement="Gateway_ReminderNeeded" isMarkerVisible="true">
+        <dc:Bounds x="3040" y="775" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3020" y="735" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendReviewReminder_di" bpmnElement="Task_SendReviewReminder">
+        <dc:Bounds x="3150" y="760" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Reminder_di" bpmnElement="End_Reminder">
+        <dc:Bounds x="3370" y="782" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3343" y="825" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataStoreReference_Reviews_di" bpmnElement="DataStoreReference_Reviews">
+        <dc:Bounds x="3890" y="710" width="70" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3880" y="770" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Select_di" bpmnElement="Flow_Select">
+        <di:waypoint x="276" y="410" />
+        <di:waypoint x="320" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CheckAccess_di" bpmnElement="Flow_CheckAccess">
+        <di:waypoint x="460" y="410" />
+        <di:waypoint x="485" y="410" />
+        <di:waypoint x="485" y="600" />
+        <di:waypoint x="510" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AccessDecision_di" bpmnElement="Flow_AccessDecision">
+        <di:waypoint x="650" y="600" />
+        <di:waypoint x="700" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AccessAllowed_di" bpmnElement="Flow_AccessAllowed">
+        <di:waypoint x="725" y="575" />
+        <di:waypoint x="725" y="410" />
+        <di:waypoint x="800" y="410" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="736" y="480" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AccessDenied_di" bpmnElement="Flow_AccessDenied">
+        <di:waypoint x="725" y="625" />
+        <di:waypoint x="725" y="730" />
+        <di:waypoint x="800" y="730" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="735" y="660" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DeniedEnd_di" bpmnElement="Flow_DeniedEnd">
+        <di:waypoint x="940" y="730" />
+        <di:waypoint x="990" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SaveArrival_di" bpmnElement="Flow_SaveArrival">
+        <di:waypoint x="950" y="410" />
+        <di:waypoint x="990" y="410" />
+        <di:waypoint x="990" y="600" />
+        <di:waypoint x="1030" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PerformService_di" bpmnElement="Flow_PerformService">
+        <di:waypoint x="1180" y="600" />
+        <di:waypoint x="1220" y="600" />
+        <di:waypoint x="1220" y="410" />
+        <di:waypoint x="1260" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_EvaluateService_di" bpmnElement="Flow_EvaluateService">
+        <di:waypoint x="1410" y="410" />
+        <di:waypoint x="1480" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ValidateEvaluation_di" bpmnElement="Flow_ValidateEvaluation">
+        <di:waypoint x="1630" y="410" />
+        <di:waypoint x="1665" y="410" />
+        <di:waypoint x="1665" y="600" />
+        <di:waypoint x="1700" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ValidationDecision_di" bpmnElement="Flow_ValidationDecision">
+        <di:waypoint x="1850" y="600" />
+        <di:waypoint x="1900" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ValidEvaluation_di" bpmnElement="Flow_ValidEvaluation">
+        <di:waypoint x="1950" y="600" />
+        <di:waypoint x="2030" y="600" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1978" y="575" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CorrectEvaluation_di" bpmnElement="Flow_CorrectEvaluation">
+        <di:waypoint x="1925" y="625" />
+        <di:waypoint x="1925" y="720" />
+        <di:waypoint x="1555" y="720" />
+        <di:waypoint x="1555" y="450" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1700" y="730" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ExportVisit_di" bpmnElement="Flow_ExportVisit">
+        <di:waypoint x="2180" y="600" />
+        <di:waypoint x="2250" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SendReviewEmail_di" bpmnElement="Flow_SendReviewEmail">
+        <di:waypoint x="2400" y="600" />
+        <di:waypoint x="2470" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewBranches_di" bpmnElement="Flow_ReviewBranches">
+        <di:waypoint x="2620" y="600" />
+        <di:waypoint x="2665" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_OpenReviewForm_di" bpmnElement="Flow_OpenReviewForm">
+        <di:waypoint x="2690" y="575" />
+        <di:waypoint x="2690" y="190" />
+        <di:waypoint x="2770" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FillReview_di" bpmnElement="Flow_FillReview">
+        <di:waypoint x="2920" y="190" />
+        <di:waypoint x="2970" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SubmitReview_di" bpmnElement="Flow_SubmitReview">
+        <di:waypoint x="3120" y="190" />
+        <di:waypoint x="3170" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CollectReview_di" bpmnElement="Flow_CollectReview">
+        <di:waypoint x="3320" y="190" />
+        <di:waypoint x="3335" y="190" />
+        <di:waypoint x="3335" y="600" />
+        <di:waypoint x="3350" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewDecision_di" bpmnElement="Flow_ReviewDecision">
+        <di:waypoint x="3690" y="600" />
+        <di:waypoint x="3750" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewValid_di" bpmnElement="Flow_ReviewValid">
+        <di:waypoint x="3800" y="600" />
+        <di:waypoint x="3850" y="600" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3810" y="575" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewInvalid_di" bpmnElement="Flow_ReviewInvalid">
+        <di:waypoint x="3775" y="625" />
+        <di:waypoint x="3775" y="800" />
+        <di:waypoint x="3700" y="800" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3785" y="710" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewRetry_di" bpmnElement="Flow_ReviewRetry">
+        <di:waypoint x="3625" y="840" />
+        <di:waypoint x="3625" y="875" />
+        <di:waypoint x="3020" y="875" />
+        <di:waypoint x="3020" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ConfirmReview_di" bpmnElement="Flow_ConfirmReview">
+        <di:waypoint x="4000" y="600" />
+        <di:waypoint x="4050" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewFeedback_di" bpmnElement="Flow_ReviewFeedback">
+        <di:waypoint x="4125" y="560" />
+        <di:waypoint x="4125" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_VisitEnd_di" bpmnElement="Flow_VisitEnd">
+        <di:waypoint x="4200" y="190" />
+        <di:waypoint x="4240" y="190" />
+        <di:waypoint x="4240" y="600" />
+        <di:waypoint x="4270" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewExportEnd_di" bpmnElement="Flow_ReviewExportEnd">
+        <di:waypoint x="4420" y="600" />
+        <di:waypoint x="4500" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_WaitReminder_di" bpmnElement="Flow_WaitReminder">
+        <di:waypoint x="2690" y="625" />
+        <di:waypoint x="2690" y="800" />
+        <di:waypoint x="2760" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CheckReviewStatus_di" bpmnElement="Flow_CheckReviewStatus">
+        <di:waypoint x="2796" y="800" />
+        <di:waypoint x="2830" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReminderDecision_di" bpmnElement="Flow_ReminderDecision">
+        <di:waypoint x="2980" y="800" />
+        <di:waypoint x="3040" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewReminder_di" bpmnElement="Flow_ReviewReminder">
+        <di:waypoint x="3090" y="800" />
+        <di:waypoint x="3150" y="800" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3100" y="775" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SkipReminder_di" bpmnElement="Flow_SkipReminder">
+        <di:waypoint x="3065" y="825" />
+        <di:waypoint x="3065" y="855" />
+        <di:waypoint x="3388" y="855" />
+        <di:waypoint x="3388" y="818" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3075" y="833" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReminderEnd_di" bpmnElement="Flow_ReminderEnd">
+        <di:waypoint x="3300" y="800" />
+        <di:waypoint x="3370" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Analytics_di" bpmnElement="Participant_Analytics" isHorizontal="true">
+        <dc:Bounds x="160" y="930" width="4500" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Analytics_di" bpmnElement="Start_Analytics">
+        <dc:Bounds x="2030" y="982" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2003" y="1025" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WriteAnalytics_di" bpmnElement="Task_WriteAnalytics">
+        <dc:Bounds x="2250" y="960" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Analytics_di" bpmnElement="End_Analytics">
+        <dc:Bounds x="2520" y="982" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2493" y="1025" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_ReviewAnalytics_di" bpmnElement="Start_ReviewAnalytics">
+        <dc:Bounds x="4050" y="982" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="4023" y="1025" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WriteReviewAnalytics_di" bpmnElement="Task_WriteReviewAnalytics">
+        <dc:Bounds x="4270" y="960" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ReviewAnalytics_di" bpmnElement="End_ReviewAnalytics">
+        <dc:Bounds x="4500" y="982" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="4473" y="1025" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataStoreReference_Analytics_di" bpmnElement="DataStoreReference_Analytics">
+        <dc:Bounds x="2290" y="1090" width="70" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2280" y="1150" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_AnalyticsWrite_di" bpmnElement="Flow_AnalyticsWrite">
+        <di:waypoint x="2066" y="1000" />
+        <di:waypoint x="2250" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AnalyticsEnd_di" bpmnElement="Flow_AnalyticsEnd">
+        <di:waypoint x="2400" y="1000" />
+        <di:waypoint x="2520" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_WriteReviewAnalytics_di" bpmnElement="Flow_WriteReviewAnalytics">
+        <di:waypoint x="4086" y="1000" />
+        <di:waypoint x="4270" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReviewAnalyticsEnd_di" bpmnElement="Flow_ReviewAnalyticsEnd">
+        <di:waypoint x="4420" y="1000" />
+        <di:waypoint x="4500" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_SaveReview_di" bpmnElement="Association_SaveReview">
+        <di:waypoint x="3925" y="640" />
+        <di:waypoint x="3925" y="710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_VisitAnalytics_di" bpmnElement="Association_VisitAnalytics">
+        <di:waypoint x="2325" y="1040" />
+        <di:waypoint x="2325" y="1090" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_ReviewAnalytics_di" bpmnElement="Association_ReviewAnalytics">
+        <di:waypoint x="4345" y="1040" />
+        <di:waypoint x="4345" y="1115" />
+        <di:waypoint x="2360" y="1115" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_VisitAnalytics_di" bpmnElement="MessageFlow_VisitAnalytics">
+        <di:waypoint x="2325" y="640" />
+        <di:waypoint x="2325" y="910" />
+        <di:waypoint x="2048" y="910" />
+        <di:waypoint x="2048" y="982" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2140" y="880" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_ReviewAnalytics_di" bpmnElement="MessageFlow_ReviewAnalytics">
+        <di:waypoint x="4345" y="640" />
+        <di:waypoint x="4345" y="910" />
+        <di:waypoint x="4068" y="910" />
+        <di:waypoint x="4068" y="982" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="4140" y="880" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
