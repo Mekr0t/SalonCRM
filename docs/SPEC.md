@@ -102,6 +102,10 @@ Názvy v snake_case, PK `uuid`, časy `timestamptz` v UTC, enumy ako text.
 
 Indexy: `(employee_id, starts_at)`, `(customer_id, starts_at)`, `(status)`.
 
+Check constrainty: `ck_appointments_ends_after_starts` (`ends_at > starts_at`), `ck_appointments_price` (`price >= 0`), `ck_services_duration_minutes` (`duration_minutes > 0 AND duration_minutes % 15 = 0`), `ck_services_price` (`price >= 0`), `ck_payments_amount` (`amount >= 0`; zľava znižuje sumu, ale nikdy nie pod 0).
+
+Okrem uvedených indexov EF vytvára index na každý cudzí kľúč (napr. `sessions.user_id`, `appointments.service_id`). Všetky cudzie kľúče sú `ON DELETE RESTRICT` — nič sa nemaže, iba deaktivuje.
+
 Ochrana proti prekryvu (v migrácii cez `migrationBuilder.Sql`):
 
 ```sql
@@ -371,9 +375,42 @@ UI: sidebar podľa roly, meno používateľa a Odhlásiť; loading, error a empt
 
 ## 10. Demo dáta (seeder v main)
 
-- Zapína `Seed__DemoData=true`; beží iba nad prázdnou DB. Fixný seed náhody (42) → rovnaké dáta pri každej inštalácii. Časy relatívne k „teraz“ → dáta sú vždy čerstvé.
-- Účty: `admin@salon.local` (Admin, heslo `Seed__AdminPassword`) a 4 pracovníčky (User, heslo `Seed__UserPassword`) so špecializáciou: pleť + líčenie · nechty · obočie/mihalnice + depilácia · masáže + pleť.
-- ~14 služieb s realistickými časmi a cenami (napr. hĺbkové čistenie pleti 60 min / 45 €, doplnenie gélových nechtov 90 min / 30 €, laminácia obočia 45 min / 30 €, relaxačná masáž 60 min / 40 €).
+Seed má dve časti:
+
+- **Základný seed** (účty, služby, `user_services`) beží **vždy**, keď tabuľka `users` je prázdna — inak by sa nebolo ako prihlásiť. Vyžaduje `Seed__AdminPassword` a `Seed__UserPassword`; ak chýbajú, seed sa preskočí s varovaním v logu.
+- **História** (zákazníci, termíny, platby) beží iba pri `Seed__DemoData=true` a iba nad DB bez zákazníkov. Fixný seed náhody (42) → rovnaké dáta pri každej inštalácii. Časy relatívne k „teraz“ → dáta sú vždy čerstvé.
+
+Základný seed:
+
+- Účty: `admin@salon.local` (Admin „Administrátor salónu“, heslo `Seed__AdminPassword`) a 4 pracovníčky (User, heslo `Seed__UserPassword`):
+
+| Pracovníčka | E-mail | Služby (kategórie) |
+|---|---|---|
+| Jana Kováčová | `jana.kovacova@salon.local` | Skin, Makeup |
+| Lucia Horváthová | `lucia.horvathova@salon.local` | Nails |
+| Petra Novotná | `petra.novotna@salon.local` | BrowsLashes, Waxing |
+| Mária Vargová | `maria.vargova@salon.local` | Massage, Skin |
+
+- Služby:
+
+| Kategória | Služba | Trvanie | Cena |
+|---|---|---|---|
+| Skin | Hĺbkové čistenie pleti | 60 min | 45 € |
+| Skin | Hydratačné ošetrenie pleti | 60 min | 50 € |
+| Skin | Anti-age ošetrenie | 75 min | 60 € |
+| Makeup | Denné líčenie | 45 min | 30 € |
+| Makeup | Svadobné líčenie | 90 min | 70 € |
+| Nails | Gélové nechty – nová modelácia | 120 min | 40 € |
+| Nails | Doplnenie gélových nechtov | 90 min | 30 € |
+| Nails | Manikúra s gél lakom | 60 min | 25 € |
+| BrowsLashes | Laminácia obočia | 45 min | 30 € |
+| BrowsLashes | Lash lifting | 60 min | 35 € |
+| Waxing | Depilácia nôh | 45 min | 30 € |
+| Waxing | Depilácia podpazušia | 15 min | 10 € |
+| Massage | Relaxačná masáž | 60 min | 40 € |
+| Massage | Masáž chrbta a šije | 30 min | 25 € |
+
+História:
 - ~300 zákazníkov (Bogus, locale `sk`), história 24 mesiacov dozadu + naplánované termíny na 3 týždne dopredu.
 - Archetypy zákazníkov:
 

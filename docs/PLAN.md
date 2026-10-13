@@ -38,10 +38,10 @@ SPEC: §11
 SPEC: §3, §6 (`/api/health`)
 
 - [x] Solution, `SalonCrm.Api` (Web API s controllermi), `SalonCrm.Api.Tests` (xUnit + Testcontainers.PostgreSql); dev port 5080 v `launchSettings.json`
-- [ ] EF Core + Npgsql + snake_case, všetky entity z §3, enumy ako text, `AppDbContext`
-- [ ] Úvodná migrácia vrátane `btree_gist` a exclusion constraintu
-- [ ] ProblemDetails, OpenAPI dokument + UI v Development, `TimeProvider` v DI
-- [ ] Migrácie pri štarte (s retry na dostupnosť DB), základný seed: admin, 4 pracovníčky, služby, `user_services`
+- [x] EF Core + Npgsql + snake_case, všetky entity z §3, enumy ako text, `AppDbContext`
+- [x] Úvodná migrácia vrátane `btree_gist` a exclusion constraintu
+- [x] ProblemDetails, OpenAPI dokument + UI v Development, `TimeProvider` v DI
+- [x] Migrácie pri štarte (s retry na dostupnosť DB), základný seed: admin, 4 pracovníčky, služby, `user_services`
 
 **Hotovo, keď:** `dotnet build` a `dotnet test` prejdú, `/api/health` vráti 200, tabuľky aj constraint existujú v DB.
 

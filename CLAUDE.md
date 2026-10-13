@@ -131,7 +131,7 @@ docker compose down -v        # zmaže aj dáta
 5. Novú knižnicu mimo stacku pridaj až po odsúhlasení.
 6. Pred tým, ako povieš „hotovo“, spusti build, testy a lint dotknutých častí a napíš výsledok. Ak niečo padá, povedz to.
 7. Migrácie generuj nástrojmi (`dotnet ef`, `alembic revision --autogenerate`), skontroluj ich a nikdy neupravuj už aplikovanú migráciu.
-8. Commit po každej ucelenej časti (Conventional Commits).
+8. Napis mi commit message po každej ucelenej časti (Conventional Commits).
 
 ## Pasce
 
