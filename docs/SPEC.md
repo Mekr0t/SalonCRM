@@ -291,13 +291,13 @@ Sync nahrádza obsah `raw_*` v jednej transakcii. Predikcie sa nemažú — tvor
 
 ### 8.3 Pipeline (`POST /ml/pipeline/run`)
 1. **Sync** — stiahnuť export z main (§7), uložiť do `raw_*`.
-2. **Snapshoty** — referenčný dátum R = teraz (UTC), horizont H = 90 dní. Snapshoty `T_k = R − H − k·30 dní` pre k = 0…5 (každý má celý horizont v minulosti, label je teda známy).
+2. **Snapshoty** — referenčný dátum R = teraz (UTC), horizont H = 90 dní. Snapshoty `T_k = R − H − k·30 dní` pre k = 0…7 (každý má celý horizont v minulosti, label je teda známy).
 3. **Riadky datasetu** — pre každý `T_k`: zákazníci s ≥ 2 `Completed` návštevami so `starts_at ≤ T_k`; príznaky (§8.4) iba z dát známych k `T_k`; label `y = 1`, ak zákazník nemá žiadnu `Completed` návštevu so `starts_at ∈ (T_k, T_k + H]`.
-4. **Validácia v čase** — tréning na k = 1…5, validácia na k = 0 (najnovší snapshot). Žiadny náhodný split.
+4. **Validácia v čase s medzerou** — validácia na k = 0 (najnovší snapshot), tréning na k = 3…7, t. j. iba snapshoty, ktorých label okno skončilo najneskôr vo validačnom dátume (`T_k + H ≤ T_0` ⇔ k ≥ 3). Snapshoty k = 1, 2 by sa labelom prekrývali s validačným obdobím a metriky by boli optimistické; vo validácii sa nepoužijú (do finálneho pretrénovania áno). Žiadny náhodný split.
 5. **Kandidáti** — `LogisticRegression` (so `StandardScaler`, `class_weight="balanced"`), `RandomForestClassifier` (`class_weight="balanced"`), `HistGradientBoostingClassifier`. Fixný `random_state`.
-6. **Baseline** — pravidlo `recency_ratio > 2.0 → churn`, vyhodnotené na tej istej validačnej množine.
+6. **Baseline** — pravidlo `recency_ratio > 2.0 → churn`, vyhodnotené na tej istej validačnej množine. ROC-AUC baseline sa počíta zo spojitého skóre `recency_ratio` (férové porovnanie s pravdepodobnosťami modelu); precision, recall, F1 a confusion matrix z pravidla s prahom 2,0.
 7. **Metriky** — ROC-AUC (hlavná), precision, recall a F1 pri prahu 0,5, confusion matrix, podiel pozitívnych. Uložiť pre všetkých kandidátov aj baseline.
-8. **Výber** podľa ROC-AUC → dôležitosť príznakov cez `permutation_importance` na validačnej množine → pretrénovať víťaza na všetkých snapshotoch → uložiť `joblib` do `MODEL_DIR` → záznam v `model_versions` (`is_active`).
+8. **Výber** podľa ROC-AUC → dôležitosť príznakov cez `permutation_importance` na validačnej množine → pretrénovať víťaza na všetkých snapshotoch (k = 0…7) → uložiť `joblib` do `MODEL_DIR` → záznam v `model_versions` (`is_active`).
 9. **Predikcia** — príznaky k `T = R` pre všetkých oprávnených zákazníkov → `predictions` + `prediction_runs`.
 10. **Odpoveď** — zhrnutie: počty, metriky víťaza vs. baseline, trvanie.
 
@@ -323,8 +323,20 @@ Beh je synchrónny (malé dáta, rádovo sekundy). Ak už jeden beh prebieha →
 
 **Pravidlo proti leakage:** `build_features(appointments, customers, cutoff)` najprv odfiltruje všetko, čo k `cutoff` nebolo známe, a až potom počíta. Povinný test: pridanie ľubovoľných termínov s `created_at > cutoff` nesmie zmeniť výsledok.
 
+Stav termínu známy k T (`known_at`):
+- `created_at > T` → termín k T neexistoval, ignoruje sa.
+- `Cancelled` s `cancelled_at > T` → k T **nezrušený** (ak `starts_at > T`, je to budúci termín).
+- `Completed` a `NoShow` sa počítajú iba pri `starts_at ≤ T`. Termín so `starts_at ≤ T`, ktorý k T nebol ani zrušený, ani `Completed`/`NoShow`, sa započíta iba do menovateľa `cancel_rate`.
+
+Spresnenia výpočtu:
+- Zákazníci s < 2 `Completed` návštevami k T sa do riadkov nezaradia.
+- `avg_interval_days` je zdola orezaný na 1 deň (dve návštevy v ten istý deň by inak delili nulou v `recency_ratio`); `std_interval_days` s `ddof=0`.
+- Časy v dňoch ako desatinné číslo.
+- `distinct_services` = počet rôznych `service_id` medzi `Completed` návštevami.
+- `main_category_*` = najčastejšia kategória `Completed` návštev (pri zhode abecedne prvá); stĺpce pre všetkých 6 kategórií vždy.
+
 ### 8.5 Úrovne rizika a zdôvodnenie
-- `low` < 0,33 ≤ `medium` < 0,66 ≤ `high` (prahy v konfigurácii).
+- `low` < 0,33 ≤ `medium` < 0,66 ≤ `high` (prahy v konfigurácii: `RISK_MEDIUM_THRESHOLD`, `RISK_HIGH_THRESHOLD`).
 - Zákazník s < 2 návštevami sa neskóruje; API preňho vracia `riskLevel: "insufficient_data"`.
 - `explanation` (po slovensky) z príznakov, napr.: „Posledná návšteva pred 64 dňami, obvykle chodí každých 21 dní (3,0× dlhšie ako zvyčajne). Nemá naplánovaný ďalší termín.“
 
@@ -451,6 +463,7 @@ História:
 | `MAIN_API_URL` | ml | `http://app:8080` v Dockeri, `http://localhost:5080` v dev |
 | `SESSION_COOKIE_NAME` | ml | `salon_sid` |
 | `MODEL_DIR` | ml | `/app/models` |
+| `RISK_MEDIUM_THRESHOLD`, `RISK_HIGH_THRESHOLD` | ml | `0.33`, `0.66` (§8.5) |
 | `DATABASE_URL` | ml | skladá sa v compose z `POSTGRES_ML_PASSWORD` (`postgresql+psycopg://salon:…@db-ml:5432/salon_ml`); v dev predvolene `localhost:5433` |
 
 V compose sa premenné mapujú na .NET konfiguráciu (`ConnectionStrings__Main`, `Internal__ApiKey`, `Seed__DemoData`, `Cookie__Secure` …).

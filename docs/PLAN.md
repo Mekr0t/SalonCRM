@@ -82,9 +82,9 @@ SPEC: §8
 - [ ] FastAPI projekt (uv, ruff, pytest), konfigurácia cez pydantic-settings, SQLAlchemy 2 + Alembic, tabuľky §8.2 _(kostra hotová, chýbajú tabuľky §8.2)_
 - [ ] camelCase JSON, chyby vo formáte ProblemDetails, CORS s credentials
 - [ ] `current_user` cez introspect (+ 30 s cache), `require_role`
-- [ ] Pipeline: sync → snapshoty → príznaky → labely → kandidáti + baseline → výber → uloženie → predikcia → zdôvodnenia
+- [ ] Pipeline: sync → snapshoty → príznaky → labely → kandidáti + baseline → výber → uloženie → predikcia → zdôvodnenia _(ML jadro hotové v `app/ml/` ako čisté funkcie; chýba sync z main a zápis do `salon_ml`)_
 - [ ] Endpointy §8.7, OpenAPI na `/docs`
-- [ ] Testy: leakage test (§8.4); labely na ručne zostavenom mini datasete; hranice úrovní rizika; auth s mockovaným introspectom; pipeline end-to-end na malom syntetickom datasete
+- [ ] Testy: leakage test (§8.4); labely na ručne zostavenom mini datasete; hranice úrovní rizika; auth s mockovaným introspectom; pipeline end-to-end na malom syntetickom datasete _(hotové všetko okrem auth s mockovaným introspectom)_
 
 **Hotovo, keď:** prihlásený admin (cookie z main) spustí `POST /ml/pipeline/run` a dostane metriky víťaza aj baseline; User na admin endpointy → 403; bez cookie → 401. Ak model neprekoná baseline, Claude to má nahlásiť a vysvetliť prečo — nie potichu ladiť dáta.
 
