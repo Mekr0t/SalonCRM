@@ -12,6 +12,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     private readonly PostgreSqlContainer _db = new PostgreSqlBuilder("postgres:17").Build();
 
+    // Server-level connection string of the shared container (database "test").
+    public string ConnectionString => _db.GetConnectionString();
+
     public async Task InitializeAsync() => await _db.StartAsync();
 
     async Task IAsyncLifetime.DisposeAsync()

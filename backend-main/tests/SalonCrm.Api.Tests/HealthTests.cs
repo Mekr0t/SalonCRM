@@ -4,7 +4,8 @@ using System.Text.Json;
 
 namespace SalonCrm.Api.Tests;
 
-public class HealthTests(ApiFactory factory) : IClassFixture<ApiFactory>
+[Collection("api")]
+public class HealthTests(ApiFactory factory)
 {
     [Fact]
     public async Task Health_returns_ok_with_database_ok()

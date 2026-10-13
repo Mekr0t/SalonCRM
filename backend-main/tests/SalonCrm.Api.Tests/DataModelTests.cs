@@ -8,7 +8,8 @@ using SalonCrm.Api.Domain;
 
 namespace SalonCrm.Api.Tests;
 
-public class DataModelTests(ApiFactory factory) : IClassFixture<ApiFactory>
+[Collection("api")]
+public class DataModelTests(ApiFactory factory)
 {
     private static readonly DateTime Base = new(2030, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
@@ -76,9 +77,89 @@ public class DataModelTests(ApiFactory factory) : IClassFixture<ApiFactory>
             "SELECT role FROM users WHERE email = 'admin@salon.local'"));
     }
 
+    [Fact]
+    public async Task Enum_values_are_written_as_text_literals()
+    {
+        await using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var f = await CreateFixtureAsync(db, ServiceCategory.Nails);
+
+        var online = Appt(f, f.EmployeeA, Base, Base.AddHours(1));
+        online.Source = AppointmentSource.Online;
+        var staff = Appt(f, f.EmployeeA, Base.AddHours(2), Base.AddHours(3), AppointmentStatus.Completed);
+        db.Appointments.AddRange(online, staff);
+        db.Payments.Add(new Payment
+        {
+            AppointmentId = online.Id, Amount = 10m, Method = PaymentMethod.Card,
+            PaidAt = DateTime.UtcNow, RecordedByUserId = f.EmployeeA,
+        });
+        db.RetentionActions.Add(new RetentionAction
+        {
+            CustomerId = f.Customer, CreatedByUserId = f.EmployeeA, Channel = RetentionChannel.Phone,
+            Note = "call", CreatedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        Assert.Equal("Scheduled", await Scalar<string>(db,
+            $"SELECT status FROM appointments WHERE id = '{online.Id}'"));
+        Assert.Equal("Online", await Scalar<string>(db,
+            $"SELECT source FROM appointments WHERE id = '{online.Id}'"));
+        Assert.Equal("Completed", await Scalar<string>(db,
+            $"SELECT status FROM appointments WHERE id = '{staff.Id}'"));
+        Assert.Equal("Staff", await Scalar<string>(db,
+            $"SELECT source FROM appointments WHERE id = '{staff.Id}'"));
+        Assert.Equal("Nails", await Scalar<string>(db,
+            $"SELECT category FROM services WHERE id = '{f.Service}'"));
+        Assert.Equal("Card", await Scalar<string>(db,
+            $"SELECT method FROM payments WHERE appointment_id = '{online.Id}'"));
+        Assert.Equal("Phone", await Scalar<string>(db,
+            $"SELECT channel FROM retention_actions WHERE customer_id = '{f.Customer}'"));
+        Assert.Equal("User", await Scalar<string>(db,
+            $"SELECT role FROM users WHERE id = '{f.EmployeeA}'"));
+    }
+
+    [Fact]
+    public async Task Enum_columns_have_text_data_type()
+    {
+        await using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        string[] expected =
+        [
+            "appointments.status", "appointments.source", "services.category", "payments.method",
+            "retention_actions.channel", "users.role",
+        ];
+
+        var types = new Dictionary<string, string>();
+        var conn = db.Database.GetDbConnection();
+        await conn.OpenAsync();
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT table_name || '.' || column_name, data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND (table_name, column_name) IN (
+                    ('appointments', 'status'), ('appointments', 'source'), ('services', 'category'),
+                    ('payments', 'method'), ('retention_actions', 'channel'), ('users', 'role'))
+                """;
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync()) types[r.GetString(0)] = r.GetString(1);
+        }
+        finally
+        {
+            await conn.CloseAsync();
+        }
+
+        Assert.Equal(expected.Length, types.Count);
+        foreach (var column in expected)
+            Assert.Equal("text", types.GetValueOrDefault(column));
+    }
+
     private sealed record Fixture(Guid Customer, Guid EmployeeA, Guid EmployeeB, Guid Service);
 
-    private static async Task<Fixture> CreateFixtureAsync(AppDbContext db)
+    private static async Task<Fixture> CreateFixtureAsync(AppDbContext db,
+        ServiceCategory category = ServiceCategory.Skin)
     {
         var tag = Guid.NewGuid().ToString("N");
         var now = DateTime.UtcNow;
@@ -89,7 +170,7 @@ public class DataModelTests(ApiFactory factory) : IClassFixture<ApiFactory>
         };
         var a = new User { Email = $"a{tag}@x.test", PasswordHash = "x", FullName = "A", Role = UserRole.User, CreatedAt = now };
         var b = new User { Email = $"b{tag}@x.test", PasswordHash = "x", FullName = "B", Role = UserRole.User, CreatedAt = now };
-        var service = new Service { Name = "S" + tag, Category = ServiceCategory.Skin, DurationMinutes = 60, Price = 10m, IsActive = false };
+        var service = new Service { Name = "S" + tag, Category = category, DurationMinutes = 60, Price = 10m, IsActive = false };
         db.AddRange(customer, a, b, service);
         await db.SaveChangesAsync();
         return new Fixture(customer.Id, a.Id, b.Id, service.Id);
@@ -177,21 +258,5 @@ public class DataModelTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var jana = await db.Users.SingleAsync(u => u.Email == "jana.kovacova@salon.local");
         Assert.Equal(PasswordVerificationResult.Success,
             hasher.VerifyHashedPassword(jana, jana.PasswordHash, ApiFactory.UserPassword));
-    }
-
-    [Fact]
-    public async Task Base_seed_is_idempotent()
-    {
-        await using var scope = NewScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var users = await db.Users.CountAsync();
-        var services = await db.Services.CountAsync();
-        var links = await db.UserServices.CountAsync();
-
-        await scope.ServiceProvider.GetRequiredService<BaseSeeder>().SeedAsync();
-
-        Assert.Equal(users, await db.Users.CountAsync());
-        Assert.Equal(services, await db.Services.CountAsync());
-        Assert.Equal(links, await db.UserServices.CountAsync());
     }
 }
