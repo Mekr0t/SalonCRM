@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1q5nos0" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.31.0">
+  <bpmn:collaboration id="Collaboration_1f98a8x">
+    <bpmn:participant id="Participant_09jtzsy" name="Zákazník" processRef="Process_0wojvlz" />
+    <bpmn:participant id="Participant_1fvr61l" name="CRM/REZERVAČNÝ SYSTÉM" processRef="Process_0w4sb9s" />
+    <bpmn:participant id="Participant_CancelBooking" name="Zrušenie rezervácie — stylista" processRef="Process_CancelBooking" />
+    <bpmn:participant id="Participant_CancelAdmin" name="Zrušenie rezervácie — admin" processRef="Process_CancelAdmin" />
+    <bpmn:messageFlow id="MessageFlow_CancelNotice" name="E-mail o zrušení rezervácie" sourceRef="Task_CancelEmail" targetRef="Start_CancelNotice" />
+    <bpmn:messageFlow id="MessageFlow_AdminCancelNotice" name="E-mail o zrušení rezervácie" sourceRef="Task_AdminCancelEmail" targetRef="Start_CancelNotice" />
+    <bpmn:messageFlow id="Flow_0qov94g" name="Požiadavka na rezerváciu" sourceRef="Activity_SendRequest" targetRef="Event_RequestReceived" />
+    <bpmn:messageFlow id="Flow_18zpvwy" name="Výsledok rezervácie" sourceRef="Activity_0z99upu" targetRef="Activity_ReceiveResult" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_0wojvlz" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_12m2ze2">
+      <bpmn:outgoing>Flow_01thzxk</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Activity_145hw6a" name="Vybratie požadovanej služby">
+      <bpmn:incoming>Flow_01thzxk</bpmn:incoming>
+      <bpmn:outgoing>Flow_18ghsq4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_0jnf7lt" name="Vybratie požadovaného stylistu">
+      <bpmn:incoming>Flow_18ghsq4</bpmn:incoming>
+      <bpmn:outgoing>Flow_1ly1dd0</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_0rd5tec" name="Vybratie voľného časového slotu v kalendári">
+      <bpmn:incoming>Flow_1ly1dd0</bpmn:incoming>
+      <bpmn:outgoing>Flow_09eqvsu</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_1uxnmul" name="Vyplnenie osobných a kontaktných informácií">
+      <bpmn:incoming>Flow_09eqvsu</bpmn:incoming>
+      <bpmn:outgoing>Flow_DataToRequest</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Activity_SendRequest" name="Odoslanie požiadavky na rezerváciu">
+      <bpmn:incoming>Flow_DataToRequest</bpmn:incoming>
+      <bpmn:outgoing>Flow_RequestToResult</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="Activity_ReceiveResult" name="Prijatie výsledku rezervácie">
+      <bpmn:incoming>Flow_RequestToResult</bpmn:incoming>
+      <bpmn:outgoing>Flow_ResultToReview</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Activity_1ej4ff6" name="Oboznámenie sa s výsledkom rezervácie">
+      <bpmn:incoming>Flow_ResultToReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_0egm2pp</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_01thzxk" sourceRef="StartEvent_12m2ze2" targetRef="Activity_145hw6a" />
+    <bpmn:sequenceFlow id="Flow_18ghsq4" sourceRef="Activity_145hw6a" targetRef="Activity_0jnf7lt" />
+    <bpmn:sequenceFlow id="Flow_1ly1dd0" sourceRef="Activity_0jnf7lt" targetRef="Activity_0rd5tec" />
+    <bpmn:sequenceFlow id="Flow_09eqvsu" sourceRef="Activity_0rd5tec" targetRef="Activity_1uxnmul" />
+    <bpmn:sequenceFlow id="Flow_DataToRequest" sourceRef="Activity_1uxnmul" targetRef="Activity_SendRequest" />
+    <bpmn:sequenceFlow id="Flow_RequestToResult" sourceRef="Activity_SendRequest" targetRef="Activity_ReceiveResult" />
+    <bpmn:sequenceFlow id="Flow_ResultToReview" sourceRef="Activity_ReceiveResult" targetRef="Activity_1ej4ff6" />
+    <bpmn:endEvent id="Event_0ya6cul">
+      <bpmn:incoming>Flow_0egm2pp</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0egm2pp" sourceRef="Activity_1ej4ff6" targetRef="Event_0ya6cul" />
+    <bpmn:startEvent id="Start_CancelNotice" name="Prijatý e-mail o zrušení">
+      <bpmn:outgoing>Flow_ReadCancelNotice</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_CancelNotice" />
+    </bpmn:startEvent>
+    <bpmn:task id="Task_ReadCancelNotice" name="Oboznámenie sa so zrušením rezervácie">
+      <bpmn:incoming>Flow_ReadCancelNotice</bpmn:incoming><bpmn:outgoing>Flow_CancelNoticeEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_CancelNotice"><bpmn:incoming>Flow_CancelNoticeEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ReadCancelNotice" sourceRef="Start_CancelNotice" targetRef="Task_ReadCancelNotice" />
+    <bpmn:sequenceFlow id="Flow_CancelNoticeEnd" sourceRef="Task_ReadCancelNotice" targetRef="End_CancelNotice" />
+  </bpmn:process>
+  <bpmn:process id="Process_0w4sb9s">
+    <bpmn:startEvent id="Event_RequestReceived" name="Prijatá požiadavka na rezerváciu">
+      <bpmn:outgoing>Flow_RequestToCheck</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_Request" />
+    </bpmn:startEvent>
+    <bpmn:task id="Activity_1ea2xui" name="Finálna kontrola dostupnosti termínu, stylistu a služby v danom čase">
+      <bpmn:incoming>Flow_RequestToCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_05zvdqy</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_17fjxp5" name="Je termín dostupný?">
+      <bpmn:incoming>Flow_05zvdqy</bpmn:incoming>
+      <bpmn:outgoing>Flow_04pnh09</bpmn:outgoing>
+      <bpmn:outgoing>Flow_04d7uqd</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Activity_1c8gl7f" name="Vytvorenie rezervácie">
+      <bpmn:incoming>Flow_04pnh09</bpmn:incoming>
+      <bpmn:outgoing>Flow_01kbqr7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_15fsnbu" name="Zamietnutie rezervácie">
+      <bpmn:incoming>Flow_04d7uqd</bpmn:incoming>
+      <bpmn:outgoing>Flow_1k7hsro</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_0gfzhtw" name="Odoslanie potvrdzujúceho e-mailu zákazníkovi">
+      <bpmn:incoming>Flow_01kbqr7</bpmn:incoming>
+      <bpmn:outgoing>Flow_15yump8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_RequestToCheck" sourceRef="Event_RequestReceived" targetRef="Activity_1ea2xui" />
+    <bpmn:sequenceFlow id="Flow_05zvdqy" sourceRef="Activity_1ea2xui" targetRef="Gateway_17fjxp5" />
+    <bpmn:sequenceFlow id="Flow_04pnh09" name="Termín je dostupný" sourceRef="Gateway_17fjxp5" targetRef="Activity_1c8gl7f" />
+    <bpmn:sequenceFlow id="Flow_04d7uqd" name="Termín je obsadený" sourceRef="Gateway_17fjxp5" targetRef="Activity_15fsnbu" />
+    <bpmn:sequenceFlow id="Flow_01kbqr7" sourceRef="Activity_1c8gl7f" targetRef="Activity_0gfzhtw" />
+    <bpmn:sequenceFlow id="Flow_1k7hsro" sourceRef="Activity_15fsnbu" targetRef="Activity_0z99upu" />
+    <bpmn:sequenceFlow id="Flow_15yump8" sourceRef="Activity_0gfzhtw" targetRef="Activity_0z99upu" />
+    <bpmn:sendTask id="Activity_0z99upu" name="Odoslanie výsledku rezervácie do webového rozhrania">
+      <bpmn:incoming>Flow_1k7hsro</bpmn:incoming>
+      <bpmn:incoming>Flow_15yump8</bpmn:incoming>
+      <bpmn:outgoing>Flow_ResultToEnd</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="Event_CRMEnd">
+      <bpmn:incoming>Flow_ResultToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ResultToEnd" sourceRef="Activity_0z99upu" targetRef="Event_CRMEnd" />
+  </bpmn:process>
+  <bpmn:process id="Process_CancelBooking" name="Zrušenie rezervácie — rozhranie stylistu" isExecutable="false">
+    <bpmn:documentation>Stylista a admin používajú rovnaké rozhranie a rovnakú implementáciu. Tento pool zobrazuje použitie stylistom, druhý pool adminom. Vetva podľa role pri načítaní zoznamu aj pri zrušení vychádza z identity prihláseného používateľa overenej CRM. Admin vidí a ruší všetky rezervácie, stylista iba vlastné. V tomto poole sa pri zobrazení uplatní vetva stylistu. Dokončené a už zrušené rezervácie sa nerušia. Dôvod je voliteľný. Platba a storno poplatky sú mimo rozsahu. Zrušenie zachová históriu, nejde o fyzické vymazanie.</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_CancelBooking">
+      <bpmn:lane id="Lane_CancelStylist" name="Stylista — len vlastné rezervácie">
+        <bpmn:flowNodeRef>Start_CancelStylist</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_SelectOwnBooking</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_StylistCancelReason</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_StylistConfirmCancel</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_CancelCRM" name="CRM / rezervačný systém">
+        <bpmn:flowNodeRef>Task_CheckDisplayRole</bpmn:flowNodeRef><bpmn:flowNodeRef>Gateway_DisplayAdmin</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_DisplayAllBookings</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_DisplayOwnBookings</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CheckCancelAccess</bpmn:flowNodeRef><bpmn:flowNodeRef>Gateway_CancelAccess</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_DenyCancelAccess</bpmn:flowNodeRef><bpmn:flowNodeRef>End_CancelDenied</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_CheckCancelState</bpmn:flowNodeRef><bpmn:flowNodeRef>Gateway_CancelState</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_DenyCancelState</bpmn:flowNodeRef><bpmn:flowNodeRef>End_CancelUnavailable</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_CancelBooking</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_FreeCancelledSlot</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_RecordCancellation</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_CancelEmail</bpmn:flowNodeRef><bpmn:flowNodeRef>End_CancelBooking</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_CancelStylist" name="Otvorenie rozhrania rezervácií"><bpmn:outgoing>Flow_CheckDisplayRole</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Task_CheckDisplayRole" name="Overenie role pri načítaní zoznamu"><bpmn:incoming>Flow_CheckDisplayRole</bpmn:incoming><bpmn:outgoing>Flow_DisplayRoleDecision</bpmn:outgoing></bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_DisplayAdmin" name="Je používateľ admin?"><bpmn:incoming>Flow_DisplayRoleDecision</bpmn:incoming><bpmn:outgoing>Flow_DisplayAllBookings</bpmn:outgoing><bpmn:outgoing>Flow_DisplayOwnBookings</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="Task_DisplayAllBookings" name="Zobrazenie všetkých rezervácií"><bpmn:incoming>Flow_DisplayAllBookings</bpmn:incoming><bpmn:outgoing>Flow_SelectFromAll</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_DisplayOwnBookings" name="Zobrazenie iba vlastných rezervácií"><bpmn:incoming>Flow_DisplayOwnBookings</bpmn:incoming><bpmn:outgoing>Flow_SelectOwnBooking</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_SelectOwnBooking" name="Výber rezervácie zo zoznamu"><bpmn:incoming>Flow_SelectOwnBooking</bpmn:incoming><bpmn:incoming>Flow_SelectFromAll</bpmn:incoming><bpmn:outgoing>Flow_StylistCancelReason</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_StylistCancelReason" name="Zadanie voliteľného dôvodu zrušenia"><bpmn:incoming>Flow_StylistCancelReason</bpmn:incoming><bpmn:outgoing>Flow_StylistConfirmCancel</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_StylistConfirmCancel" name="Potvrdenie požiadavky na zrušenie"><bpmn:incoming>Flow_StylistConfirmCancel</bpmn:incoming><bpmn:outgoing>Flow_StylistCancelAccess</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_CheckCancelAccess" name="Overenie role a vlastníctva rezervácie">
+      <bpmn:documentation>CRM povolí admina pri každej rezervácii. Stylistu povolí iba vtedy, keď identita prihláseného stylistu zodpovedá stylistovi priradenému k rezervácii. Ostatné prípady odmietne.</bpmn:documentation>
+      <bpmn:incoming>Flow_StylistCancelAccess</bpmn:incoming><bpmn:outgoing>Flow_CancelAccessDecision</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_CancelAccess" name="Je admin alebo vlastník rezervácie?"><bpmn:incoming>Flow_CancelAccessDecision</bpmn:incoming><bpmn:outgoing>Flow_CancelAccessAllowed</bpmn:outgoing><bpmn:outgoing>Flow_CancelAccessDenied</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="Task_DenyCancelAccess" name="Zobrazenie odmietnutia pre chýbajúce oprávnenie"><bpmn:incoming>Flow_CancelAccessDenied</bpmn:incoming><bpmn:outgoing>Flow_CancelDeniedEnd</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="End_CancelDenied" name="Zrušenie nepovolené"><bpmn:incoming>Flow_CancelDeniedEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:task id="Task_CheckCancelState" name="Kontrola aktuálneho stavu rezervácie"><bpmn:incoming>Flow_CancelAccessAllowed</bpmn:incoming><bpmn:outgoing>Flow_CancelStateDecision</bpmn:outgoing></bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_CancelState" name="Možno rezerváciu zrušiť?"><bpmn:incoming>Flow_CancelStateDecision</bpmn:incoming><bpmn:outgoing>Flow_CancelStateAllowed</bpmn:outgoing><bpmn:outgoing>Flow_CancelStateDenied</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="Task_DenyCancelState" name="Zobrazenie dôvodu, prečo nemožno zrušiť">
+      <bpmn:documentation>Rezervácia je napríklad už dokončená alebo zrušená. Bez zmeny stavu a bez ďalšieho oznámenia zákazníkovi.</bpmn:documentation>
+      <bpmn:incoming>Flow_CancelStateDenied</bpmn:incoming><bpmn:outgoing>Flow_CancelUnavailableEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_CancelUnavailable" name="Rezervácia sa nezmenila"><bpmn:incoming>Flow_CancelUnavailableEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:task id="Task_CancelBooking" name="Označenie rezervácie ako zrušenej">
+      <bpmn:documentation>Pri zmene CRM opätovne zohľadní aktuálne oprávnenie a stav, aby súbežná zmena neviedla k neoprávnenému alebo opakovanému zrušeniu.</bpmn:documentation>
+      <bpmn:incoming>Flow_CancelStateAllowed</bpmn:incoming><bpmn:outgoing>Flow_FreeCancelledSlot</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_FreeCancelledSlot" name="Uvoľnenie termínu v kalendári"><bpmn:incoming>Flow_FreeCancelledSlot</bpmn:incoming><bpmn:outgoing>Flow_RecordCancellation</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_RecordCancellation" name="Zápis autora, času a dôvodu zrušenia"><bpmn:incoming>Flow_RecordCancellation</bpmn:incoming><bpmn:outgoing>Flow_CancelEmail</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_CancelEmail" name="Odoslanie e-mailu zákazníkovi o zrušení"><bpmn:incoming>Flow_CancelEmail</bpmn:incoming><bpmn:outgoing>Flow_CancelBookingEnd</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="End_CancelBooking" name="Rezervácia zrušená"><bpmn:incoming>Flow_CancelBookingEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_CheckDisplayRole" sourceRef="Start_CancelStylist" targetRef="Task_CheckDisplayRole" />
+    <bpmn:sequenceFlow id="Flow_DisplayRoleDecision" sourceRef="Task_CheckDisplayRole" targetRef="Gateway_DisplayAdmin" />
+    <bpmn:sequenceFlow id="Flow_DisplayAllBookings" name="Áno — admin" sourceRef="Gateway_DisplayAdmin" targetRef="Task_DisplayAllBookings" />
+    <bpmn:sequenceFlow id="Flow_DisplayOwnBookings" name="Nie — stylista" sourceRef="Gateway_DisplayAdmin" targetRef="Task_DisplayOwnBookings" />
+    <bpmn:sequenceFlow id="Flow_SelectFromAll" sourceRef="Task_DisplayAllBookings" targetRef="Task_SelectOwnBooking" />
+    <bpmn:sequenceFlow id="Flow_SelectOwnBooking" sourceRef="Task_DisplayOwnBookings" targetRef="Task_SelectOwnBooking" />
+    <bpmn:sequenceFlow id="Flow_StylistCancelReason" sourceRef="Task_SelectOwnBooking" targetRef="Task_StylistCancelReason" />
+    <bpmn:sequenceFlow id="Flow_StylistConfirmCancel" sourceRef="Task_StylistCancelReason" targetRef="Task_StylistConfirmCancel" />
+    <bpmn:sequenceFlow id="Flow_StylistCancelAccess" sourceRef="Task_StylistConfirmCancel" targetRef="Task_CheckCancelAccess" />
+    <bpmn:sequenceFlow id="Flow_CancelAccessDecision" sourceRef="Task_CheckCancelAccess" targetRef="Gateway_CancelAccess" />
+    <bpmn:sequenceFlow id="Flow_CancelAccessAllowed" name="Áno" sourceRef="Gateway_CancelAccess" targetRef="Task_CheckCancelState" />
+    <bpmn:sequenceFlow id="Flow_CancelAccessDenied" name="Nie" sourceRef="Gateway_CancelAccess" targetRef="Task_DenyCancelAccess" />
+    <bpmn:sequenceFlow id="Flow_CancelDeniedEnd" sourceRef="Task_DenyCancelAccess" targetRef="End_CancelDenied" />
+    <bpmn:sequenceFlow id="Flow_CancelStateDecision" sourceRef="Task_CheckCancelState" targetRef="Gateway_CancelState" />
+    <bpmn:sequenceFlow id="Flow_CancelStateAllowed" name="Áno" sourceRef="Gateway_CancelState" targetRef="Task_CancelBooking" />
+    <bpmn:sequenceFlow id="Flow_CancelStateDenied" name="Nie" sourceRef="Gateway_CancelState" targetRef="Task_DenyCancelState" />
+    <bpmn:sequenceFlow id="Flow_CancelUnavailableEnd" sourceRef="Task_DenyCancelState" targetRef="End_CancelUnavailable" />
+    <bpmn:sequenceFlow id="Flow_FreeCancelledSlot" sourceRef="Task_CancelBooking" targetRef="Task_FreeCancelledSlot" />
+    <bpmn:sequenceFlow id="Flow_RecordCancellation" sourceRef="Task_FreeCancelledSlot" targetRef="Task_RecordCancellation" />
+    <bpmn:sequenceFlow id="Flow_CancelEmail" sourceRef="Task_RecordCancellation" targetRef="Task_CancelEmail" />
+    <bpmn:sequenceFlow id="Flow_CancelBookingEnd" sourceRef="Task_CancelEmail" targetRef="End_CancelBooking" />
+  </bpmn:process>
+  <bpmn:process id="Process_CancelAdmin" name="Zrušenie rezervácie — rozhranie admina" isExecutable="false">
+    <bpmn:documentation>Rovnaké rozhranie a implementácia ako v poole stylistu, ale prihlásený používateľ je admin. Pri zobrazení zoznamu sa preto uplatní vetva všetkých rezervácií. Oprávnenie sa znova overí pri zrušení na strane CRM. Stavové obmedzenia sú rovnaké pre obe roly. Dôvod je voliteľný. Zrušenie zachová históriu, nejde o fyzické vymazanie.</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_AdminCancellation">
+      <bpmn:lane id="Lane_CancelAdmin" name="Admin — rovnaké rozhranie">
+        <bpmn:flowNodeRef>Start_CancelAdmin</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_SelectAnyBooking</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminCancelReason</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminConfirmCancel</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AdminCancelCRM" name="CRM / rezervačný systém">
+        <bpmn:flowNodeRef>Task_AdminCheckDisplayRole</bpmn:flowNodeRef><bpmn:flowNodeRef>Gateway_AdminDisplayRole</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminDisplayAllBookings</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminDisplayOwnBookings</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminCheckCancelAccess</bpmn:flowNodeRef><bpmn:flowNodeRef>Gateway_AdminCancelAccess</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminDenyCancelAccess</bpmn:flowNodeRef><bpmn:flowNodeRef>End_AdminCancelDenied</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminCheckCancelState</bpmn:flowNodeRef><bpmn:flowNodeRef>Gateway_AdminCancelState</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminDenyCancelState</bpmn:flowNodeRef><bpmn:flowNodeRef>End_AdminCancelUnavailable</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminCancelBooking</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminFreeCancelledSlot</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminRecordCancellation</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_AdminCancelEmail</bpmn:flowNodeRef><bpmn:flowNodeRef>End_AdminCancelBooking</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_CancelAdmin" name="Otvorenie rozhrania rezervácií"><bpmn:outgoing>Flow_AdminCheckDisplayRole</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Task_AdminCheckDisplayRole" name="Overenie role pri načítaní zoznamu"><bpmn:incoming>Flow_AdminCheckDisplayRole</bpmn:incoming><bpmn:outgoing>Flow_AdminDisplayRoleDecision</bpmn:outgoing></bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_AdminDisplayRole" name="Je používateľ admin?"><bpmn:incoming>Flow_AdminDisplayRoleDecision</bpmn:incoming><bpmn:outgoing>Flow_AdminDisplayAllBookings</bpmn:outgoing><bpmn:outgoing>Flow_AdminDisplayOwnBookings</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="Task_AdminDisplayAllBookings" name="Zobrazenie všetkých rezervácií"><bpmn:incoming>Flow_AdminDisplayAllBookings</bpmn:incoming><bpmn:outgoing>Flow_AdminSelectFromAll</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_AdminDisplayOwnBookings" name="Zobrazenie iba vlastných rezervácií"><bpmn:incoming>Flow_AdminDisplayOwnBookings</bpmn:incoming><bpmn:outgoing>Flow_SelectAnyBooking</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_SelectAnyBooking" name="Výber rezervácie zo zoznamu"><bpmn:incoming>Flow_SelectAnyBooking</bpmn:incoming><bpmn:incoming>Flow_AdminSelectFromAll</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelReason</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_AdminCancelReason" name="Zadanie voliteľného dôvodu zrušenia"><bpmn:incoming>Flow_AdminCancelReason</bpmn:incoming><bpmn:outgoing>Flow_AdminConfirmCancel</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_AdminConfirmCancel" name="Potvrdenie požiadavky na zrušenie"><bpmn:incoming>Flow_AdminConfirmCancel</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelAccess</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_AdminCheckCancelAccess" name="Overenie role a vlastníctva rezervácie">
+      <bpmn:documentation>CRM použije rovnakú podmienku ako v rozhraní stylistu: prihlásený admin alebo prihlásený stylista priradený k rezervácii. Admin nemusí byť vlastníkom rezervácie. Role ani identita sa nepreberajú z neoverených údajov formulára.</bpmn:documentation>
+      <bpmn:incoming>Flow_AdminCancelAccess</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelAccessDecision</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_AdminCancelAccess" name="Je admin alebo vlastník rezervácie?"><bpmn:incoming>Flow_AdminCancelAccessDecision</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelAccessAllowed</bpmn:outgoing><bpmn:outgoing>Flow_AdminCancelAccessDenied</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="Task_AdminDenyCancelAccess" name="Zobrazenie odmietnutia pre chýbajúce oprávnenie"><bpmn:incoming>Flow_AdminCancelAccessDenied</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelDeniedEnd</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="End_AdminCancelDenied" name="Zrušenie nepovolené"><bpmn:incoming>Flow_AdminCancelDeniedEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:task id="Task_AdminCheckCancelState" name="Kontrola aktuálneho stavu rezervácie"><bpmn:incoming>Flow_AdminCancelAccessAllowed</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelStateDecision</bpmn:outgoing></bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_AdminCancelState" name="Možno rezerváciu zrušiť?"><bpmn:incoming>Flow_AdminCancelStateDecision</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelStateAllowed</bpmn:outgoing><bpmn:outgoing>Flow_AdminCancelStateDenied</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="Task_AdminDenyCancelState" name="Zobrazenie dôvodu, prečo nemožno zrušiť">
+      <bpmn:documentation>Dokončená alebo už zrušená rezervácia sa nezmení a zákazníkovi sa neposiela ďalší e-mail.</bpmn:documentation>
+      <bpmn:incoming>Flow_AdminCancelStateDenied</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelUnavailableEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_AdminCancelUnavailable" name="Rezervácia sa nezmenila"><bpmn:incoming>Flow_AdminCancelUnavailableEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:task id="Task_AdminCancelBooking" name="Označenie rezervácie ako zrušenej">
+      <bpmn:documentation>Pri zmene CRM opätovne zohľadní aktuálne oprávnenie a stav, aby súbežná zmena neviedla k neoprávnenému alebo opakovanému zrušeniu.</bpmn:documentation>
+      <bpmn:incoming>Flow_AdminCancelStateAllowed</bpmn:incoming><bpmn:outgoing>Flow_AdminFreeCancelledSlot</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_AdminFreeCancelledSlot" name="Uvoľnenie termínu v kalendári"><bpmn:incoming>Flow_AdminFreeCancelledSlot</bpmn:incoming><bpmn:outgoing>Flow_AdminRecordCancellation</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_AdminRecordCancellation" name="Zápis autora, času a dôvodu zrušenia"><bpmn:incoming>Flow_AdminRecordCancellation</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelEmail</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_AdminCancelEmail" name="Odoslanie e-mailu zákazníkovi o zrušení"><bpmn:incoming>Flow_AdminCancelEmail</bpmn:incoming><bpmn:outgoing>Flow_AdminCancelBookingEnd</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="End_AdminCancelBooking" name="Rezervácia zrušená"><bpmn:incoming>Flow_AdminCancelBookingEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_AdminCheckDisplayRole" sourceRef="Start_CancelAdmin" targetRef="Task_AdminCheckDisplayRole" />
+    <bpmn:sequenceFlow id="Flow_AdminDisplayRoleDecision" sourceRef="Task_AdminCheckDisplayRole" targetRef="Gateway_AdminDisplayRole" />
+    <bpmn:sequenceFlow id="Flow_AdminDisplayAllBookings" name="Áno — admin" sourceRef="Gateway_AdminDisplayRole" targetRef="Task_AdminDisplayAllBookings" />
+    <bpmn:sequenceFlow id="Flow_AdminDisplayOwnBookings" name="Nie — stylista" sourceRef="Gateway_AdminDisplayRole" targetRef="Task_AdminDisplayOwnBookings" />
+    <bpmn:sequenceFlow id="Flow_AdminSelectFromAll" sourceRef="Task_AdminDisplayAllBookings" targetRef="Task_SelectAnyBooking" />
+    <bpmn:sequenceFlow id="Flow_SelectAnyBooking" sourceRef="Task_AdminDisplayOwnBookings" targetRef="Task_SelectAnyBooking" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelReason" sourceRef="Task_SelectAnyBooking" targetRef="Task_AdminCancelReason" />
+    <bpmn:sequenceFlow id="Flow_AdminConfirmCancel" sourceRef="Task_AdminCancelReason" targetRef="Task_AdminConfirmCancel" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelAccess" sourceRef="Task_AdminConfirmCancel" targetRef="Task_AdminCheckCancelAccess" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelAccessDecision" sourceRef="Task_AdminCheckCancelAccess" targetRef="Gateway_AdminCancelAccess" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelAccessAllowed" name="Áno" sourceRef="Gateway_AdminCancelAccess" targetRef="Task_AdminCheckCancelState" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelAccessDenied" name="Nie" sourceRef="Gateway_AdminCancelAccess" targetRef="Task_AdminDenyCancelAccess" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelDeniedEnd" sourceRef="Task_AdminDenyCancelAccess" targetRef="End_AdminCancelDenied" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelStateDecision" sourceRef="Task_AdminCheckCancelState" targetRef="Gateway_AdminCancelState" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelStateAllowed" name="Áno" sourceRef="Gateway_AdminCancelState" targetRef="Task_AdminCancelBooking" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelStateDenied" name="Nie" sourceRef="Gateway_AdminCancelState" targetRef="Task_AdminDenyCancelState" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelUnavailableEnd" sourceRef="Task_AdminDenyCancelState" targetRef="End_AdminCancelUnavailable" />
+    <bpmn:sequenceFlow id="Flow_AdminFreeCancelledSlot" sourceRef="Task_AdminCancelBooking" targetRef="Task_AdminFreeCancelledSlot" />
+    <bpmn:sequenceFlow id="Flow_AdminRecordCancellation" sourceRef="Task_AdminFreeCancelledSlot" targetRef="Task_AdminRecordCancellation" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelEmail" sourceRef="Task_AdminRecordCancellation" targetRef="Task_AdminCancelEmail" />
+    <bpmn:sequenceFlow id="Flow_AdminCancelBookingEnd" sourceRef="Task_AdminCancelEmail" targetRef="End_AdminCancelBooking" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1f98a8x">
+      <bpmndi:BPMNShape id="Participant_09jtzsy_di" bpmnElement="Participant_09jtzsy" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="3300" height="160" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_12m2ze2">
+        <dc:Bounds x="210" y="131" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_145hw6a_di" bpmnElement="Activity_145hw6a">
+        <dc:Bounds x="330" y="109" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0jnf7lt_di" bpmnElement="Activity_0jnf7lt">
+        <dc:Bounds x="470" y="109" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0rd5tec_di" bpmnElement="Activity_0rd5tec">
+        <dc:Bounds x="620" y="109" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1uxnmul_di" bpmnElement="Activity_1uxnmul">
+        <dc:Bounds x="790" y="109" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1ej4ff6_di" bpmnElement="Activity_1ej4ff6">
+        <dc:Bounds x="1470" y="120" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_SendRequest_di" bpmnElement="Activity_SendRequest">
+        <dc:Bounds x="990" y="109" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_ReceiveResult_di" bpmnElement="Activity_ReceiveResult">
+        <dc:Bounds x="1190" y="109" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0ya6cul_di" bpmnElement="Event_0ya6cul">
+        <dc:Bounds x="1612" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_01thzxk_di" bpmnElement="Flow_01thzxk">
+        <di:waypoint x="246" y="149" />
+        <di:waypoint x="330" y="149" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18ghsq4_di" bpmnElement="Flow_18ghsq4">
+        <di:waypoint x="430" y="149" />
+        <di:waypoint x="470" y="149" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1ly1dd0_di" bpmnElement="Flow_1ly1dd0">
+        <di:waypoint x="570" y="149" />
+        <di:waypoint x="620" y="149" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09eqvsu_di" bpmnElement="Flow_09eqvsu">
+        <di:waypoint x="720" y="149" />
+        <di:waypoint x="790" y="149" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0egm2pp_di" bpmnElement="Flow_0egm2pp">
+        <di:waypoint x="1570" y="160" />
+        <di:waypoint x="1612" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DataToRequest_di" bpmnElement="Flow_DataToRequest">
+        <di:waypoint x="890" y="149" />
+        <di:waypoint x="990" y="149" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RequestToResult_di" bpmnElement="Flow_RequestToResult">
+        <di:waypoint x="1090" y="149" />
+        <di:waypoint x="1190" y="149" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ResultToReview_di" bpmnElement="Flow_ResultToReview">
+        <di:waypoint x="1290" y="149" />
+        <di:waypoint x="1380" y="149" />
+        <di:waypoint x="1380" y="160" />
+        <di:waypoint x="1470" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_1fvr61l_di" bpmnElement="Participant_1fvr61l" isHorizontal="true">
+        <dc:Bounds x="160" y="310" width="1510" height="250" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_RequestReceived_di" bpmnElement="Event_RequestReceived">
+        <dc:Bounds x="550" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="523" y="445" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_CRMEnd_di" bpmnElement="Event_CRMEnd">
+        <dc:Bounds x="1452" y="452" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_RequestToCheck_di" bpmnElement="Flow_RequestToCheck">
+        <di:waypoint x="586" y="420" />
+        <di:waypoint x="630" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ResultToEnd_di" bpmnElement="Flow_ResultToEnd">
+        <di:waypoint x="1380" y="470" />
+        <di:waypoint x="1452" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="BPMNShape_1xdf7yf" bpmnElement="Activity_1ea2xui">
+        <dc:Bounds x="630" y="380" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_17fjxp5_di" bpmnElement="Gateway_17fjxp5" isMarkerVisible="true">
+        <dc:Bounds x="795" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="775" y="357" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1c8gl7f_di" bpmnElement="Activity_1c8gl7f">
+        <dc:Bounds x="970" y="360" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_15ws3ch" bpmnElement="Activity_15fsnbu">
+        <dc:Bounds x="970" y="460" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0wvj3s9" bpmnElement="Activity_0gfzhtw">
+        <dc:Bounds x="1130" y="360" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0z99upu_di" bpmnElement="Activity_0z99upu">
+        <dc:Bounds x="1280" y="430" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_05zvdqy_di" bpmnElement="Flow_05zvdqy">
+        <di:waypoint x="730" y="420" />
+        <di:waypoint x="795" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04pnh09_di" bpmnElement="Flow_04pnh09">
+        <di:waypoint x="845" y="420" />
+        <di:waypoint x="970" y="420" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="892" y="380" width="46" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04d7uqd_di" bpmnElement="Flow_04d7uqd">
+        <di:waypoint x="820" y="445" />
+        <di:waypoint x="820" y="500" />
+        <di:waypoint x="970" y="500" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="836" y="470" width="48" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_01kbqr7_di" bpmnElement="Flow_01kbqr7">
+        <di:waypoint x="1070" y="400" />
+        <di:waypoint x="1130" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1k7hsro_di" bpmnElement="Flow_1k7hsro">
+        <di:waypoint x="1070" y="500" />
+        <di:waypoint x="1170" y="500" />
+        <di:waypoint x="1170" y="470" />
+        <di:waypoint x="1280" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15yump8_di" bpmnElement="Flow_15yump8">
+        <di:waypoint x="1230" y="400" />
+        <di:waypoint x="1260" y="400" />
+        <di:waypoint x="1260" y="470" />
+        <di:waypoint x="1280" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0qov94g_di" bpmnElement="Flow_0qov94g">
+        <di:waypoint x="1040" y="189" />
+        <di:waypoint x="1040" y="285" />
+        <di:waypoint x="568" y="285" />
+        <di:waypoint x="568" y="402" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="715" y="250" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18zpvwy_di" bpmnElement="Flow_18zpvwy">
+        <di:waypoint x="1330" y="430" />
+        <di:waypoint x="1330" y="270" />
+        <di:waypoint x="1240" y="270" />
+        <di:waypoint x="1240" y="189" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1340" y="277" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_CancelBooking_di" bpmnElement="Participant_CancelBooking" isHorizontal="true"><dc:Bounds x="160" y="650" width="3300" height="650" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_CancelStylist_di" bpmnElement="Lane_CancelStylist" isHorizontal="true"><dc:Bounds x="190" y="650" width="3270" height="160" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_CancelAdmin_di" bpmnElement="Lane_CancelAdmin" isHorizontal="true"><dc:Bounds x="190" y="1400" width="3270" height="160" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_CancelCRM_di" bpmnElement="Lane_CancelCRM" isHorizontal="true"><dc:Bounds x="190" y="810" width="3270" height="490" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_CancelStylist_di" bpmnElement="Start_CancelStylist"><dc:Bounds x="240" y="712" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="213" y="755" width="90" height="42" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SelectOwnBooking_di" bpmnElement="Task_SelectOwnBooking"><dc:Bounds x="1050" y="690" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_StylistCancelReason_di" bpmnElement="Task_StylistCancelReason"><dc:Bounds x="1240" y="690" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_StylistConfirmCancel_di" bpmnElement="Task_StylistConfirmCancel"><dc:Bounds x="1430" y="690" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_CancelAdmin_di" bpmnElement="Start_CancelAdmin"><dc:Bounds x="240" y="1462" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="213" y="1505" width="90" height="42" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SelectAnyBooking_di" bpmnElement="Task_SelectAnyBooking"><dc:Bounds x="1050" y="1440" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminCancelReason_di" bpmnElement="Task_AdminCancelReason"><dc:Bounds x="1240" y="1440" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminConfirmCancel_di" bpmnElement="Task_AdminConfirmCancel"><dc:Bounds x="1430" y="1440" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CheckCancelAccess_di" bpmnElement="Task_CheckCancelAccess"><dc:Bounds x="920" y="1090" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_CancelAccess_di" bpmnElement="Gateway_CancelAccess" isMarkerVisible="true"><dc:Bounds x="1110" y="1105" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1090" y="1060" width="90" height="42" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DenyCancelAccess_di" bpmnElement="Task_DenyCancelAccess"><dc:Bounds x="1230" y="990" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_CancelDenied_di" bpmnElement="End_CancelDenied"><dc:Bounds x="1450" y="1012" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1423" y="1055" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CheckCancelState_di" bpmnElement="Task_CheckCancelState"><dc:Bounds x="1230" y="1090" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_CancelState_di" bpmnElement="Gateway_CancelState" isMarkerVisible="true"><dc:Bounds x="1425" y="1105" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1500" y="1065" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DenyCancelState_di" bpmnElement="Task_DenyCancelState"><dc:Bounds x="1560" y="1200" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_CancelUnavailable_di" bpmnElement="End_CancelUnavailable"><dc:Bounds x="1770" y="1222" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1816" y="1226" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CancelBooking_di" bpmnElement="Task_CancelBooking"><dc:Bounds x="1560" y="1090" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FreeCancelledSlot_di" bpmnElement="Task_FreeCancelledSlot"><dc:Bounds x="1750" y="1090" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RecordCancellation_di" bpmnElement="Task_RecordCancellation"><dc:Bounds x="1940" y="1090" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CancelEmail_di" bpmnElement="Task_CancelEmail"><dc:Bounds x="2130" y="1090" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_CancelBooking_di" bpmnElement="End_CancelBooking"><dc:Bounds x="2360" y="1112" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2333" y="1155" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_CancelNotice_di" bpmnElement="Start_CancelNotice"><dc:Bounds x="2620" y="131" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2593" y="174" width="90" height="42" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ReadCancelNotice_di" bpmnElement="Task_ReadCancelNotice"><dc:Bounds x="2740" y="109" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_CancelNotice_di" bpmnElement="End_CancelNotice"><dc:Bounds x="2950" y="131" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_SelectOwnBooking_di" bpmnElement="Flow_SelectOwnBooking"><di:waypoint x="820" y="970" /><di:waypoint x="1010" y="970" /><di:waypoint x="1010" y="730" /><di:waypoint x="1050" y="730" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StylistCancelReason_di" bpmnElement="Flow_StylistCancelReason"><di:waypoint x="1200" y="730" /><di:waypoint x="1240" y="730" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StylistConfirmCancel_di" bpmnElement="Flow_StylistConfirmCancel"><di:waypoint x="1390" y="730" /><di:waypoint x="1430" y="730" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StylistCancelAccess_di" bpmnElement="Flow_StylistCancelAccess"><di:waypoint x="1505" y="770" /><di:waypoint x="1505" y="960" /><di:waypoint x="995" y="960" /><di:waypoint x="995" y="1090" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SelectAnyBooking_di" bpmnElement="Flow_SelectAnyBooking"><di:waypoint x="820" y="1720" /><di:waypoint x="1010" y="1720" /><di:waypoint x="1010" y="1480" /><di:waypoint x="1050" y="1480" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelReason_di" bpmnElement="Flow_AdminCancelReason"><di:waypoint x="1200" y="1480" /><di:waypoint x="1240" y="1480" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminConfirmCancel_di" bpmnElement="Flow_AdminConfirmCancel"><di:waypoint x="1390" y="1480" /><di:waypoint x="1430" y="1480" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelAccess_di" bpmnElement="Flow_AdminCancelAccess"><di:waypoint x="1505" y="1520" /><di:waypoint x="1505" y="1710" /><di:waypoint x="995" y="1710" /><di:waypoint x="995" y="1840" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelAccessDecision_di" bpmnElement="Flow_CancelAccessDecision"><di:waypoint x="1070" y="1130" /><di:waypoint x="1110" y="1130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelAccessAllowed_di" bpmnElement="Flow_CancelAccessAllowed"><di:waypoint x="1160" y="1130" /><di:waypoint x="1230" y="1130" /><bpmndi:BPMNLabel><dc:Bounds x="1180" y="1105" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelAccessDenied_di" bpmnElement="Flow_CancelAccessDenied"><di:waypoint x="1135" y="1105" /><di:waypoint x="1135" y="1030" /><di:waypoint x="1230" y="1030" /><bpmndi:BPMNLabel><dc:Bounds x="1145" y="1045" width="20" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelDeniedEnd_di" bpmnElement="Flow_CancelDeniedEnd"><di:waypoint x="1380" y="1030" /><di:waypoint x="1450" y="1030" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelStateDecision_di" bpmnElement="Flow_CancelStateDecision"><di:waypoint x="1380" y="1130" /><di:waypoint x="1425" y="1130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelStateAllowed_di" bpmnElement="Flow_CancelStateAllowed"><di:waypoint x="1475" y="1130" /><di:waypoint x="1560" y="1130" /><bpmndi:BPMNLabel><dc:Bounds x="1505" y="1105" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelStateDenied_di" bpmnElement="Flow_CancelStateDenied"><di:waypoint x="1450" y="1155" /><di:waypoint x="1450" y="1240" /><di:waypoint x="1560" y="1240" /><bpmndi:BPMNLabel><dc:Bounds x="1460" y="1190" width="20" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelUnavailableEnd_di" bpmnElement="Flow_CancelUnavailableEnd"><di:waypoint x="1710" y="1240" /><di:waypoint x="1770" y="1240" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FreeCancelledSlot_di" bpmnElement="Flow_FreeCancelledSlot"><di:waypoint x="1710" y="1130" /><di:waypoint x="1750" y="1130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RecordCancellation_di" bpmnElement="Flow_RecordCancellation"><di:waypoint x="1900" y="1130" /><di:waypoint x="1940" y="1130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelEmail_di" bpmnElement="Flow_CancelEmail"><di:waypoint x="2090" y="1130" /><di:waypoint x="2130" y="1130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelBookingEnd_di" bpmnElement="Flow_CancelBookingEnd"><di:waypoint x="2280" y="1130" /><di:waypoint x="2360" y="1130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ReadCancelNotice_di" bpmnElement="Flow_ReadCancelNotice"><di:waypoint x="2656" y="149" /><di:waypoint x="2740" y="149" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelNoticeEnd_di" bpmnElement="Flow_CancelNoticeEnd"><di:waypoint x="2890" y="149" /><di:waypoint x="2950" y="149" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_CancelNotice_di" bpmnElement="MessageFlow_CancelNotice"><di:waypoint x="2205" y="1090" /><di:waypoint x="2205" y="285" /><di:waypoint x="2638" y="285" /><di:waypoint x="2638" y="167" /><bpmndi:BPMNLabel><dc:Bounds x="2380" y="250" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Task_CheckDisplayRole_di" bpmnElement="Task_CheckDisplayRole"><dc:Bounds x="330" y="850" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_DisplayAdmin_di" bpmnElement="Gateway_DisplayAdmin" isMarkerVisible="true"><dc:Bounds x="550" y="865" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="530" y="825" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DisplayAllBookings_di" bpmnElement="Task_DisplayAllBookings"><dc:Bounds x="670" y="830" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DisplayOwnBookings_di" bpmnElement="Task_DisplayOwnBookings"><dc:Bounds x="670" y="930" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_CheckDisplayRole_di" bpmnElement="Flow_CheckDisplayRole"><di:waypoint x="258" y="748" /><di:waypoint x="258" y="890" /><di:waypoint x="330" y="890" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DisplayRoleDecision_di" bpmnElement="Flow_DisplayRoleDecision"><di:waypoint x="480" y="890" /><di:waypoint x="550" y="890" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DisplayAllBookings_di" bpmnElement="Flow_DisplayAllBookings"><di:waypoint x="600" y="890" /><di:waypoint x="635" y="890" /><di:waypoint x="635" y="870" /><di:waypoint x="670" y="870" /><bpmndi:BPMNLabel><dc:Bounds x="600" y="830" width="65" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DisplayOwnBookings_di" bpmnElement="Flow_DisplayOwnBookings"><di:waypoint x="575" y="915" /><di:waypoint x="575" y="970" /><di:waypoint x="670" y="970" /><bpmndi:BPMNLabel><dc:Bounds x="590" y="935" width="75" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SelectFromAll_di" bpmnElement="Flow_SelectFromAll"><di:waypoint x="820" y="870" /><di:waypoint x="980" y="870" /><di:waypoint x="980" y="730" /><di:waypoint x="1050" y="730" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_CancelAdmin_di" bpmnElement="Participant_CancelAdmin" isHorizontal="true"><dc:Bounds x="160" y="1400" width="3300" height="650" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_AdminCancelCRM_di" bpmnElement="Lane_AdminCancelCRM" isHorizontal="true"><dc:Bounds x="190" y="1560" width="3270" height="490" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminCheckDisplayRole_di" bpmnElement="Task_AdminCheckDisplayRole"><dc:Bounds x="330" y="1600" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AdminDisplayRole_di" bpmnElement="Gateway_AdminDisplayRole" isMarkerVisible="true"><dc:Bounds x="550" y="1615" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="530" y="1575" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminDisplayAllBookings_di" bpmnElement="Task_AdminDisplayAllBookings"><dc:Bounds x="670" y="1580" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminDisplayOwnBookings_di" bpmnElement="Task_AdminDisplayOwnBookings"><dc:Bounds x="670" y="1680" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminCheckCancelAccess_di" bpmnElement="Task_AdminCheckCancelAccess"><dc:Bounds x="920" y="1840" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AdminCancelAccess_di" bpmnElement="Gateway_AdminCancelAccess" isMarkerVisible="true"><dc:Bounds x="1110" y="1855" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1090" y="1810" width="90" height="42" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminDenyCancelAccess_di" bpmnElement="Task_AdminDenyCancelAccess"><dc:Bounds x="1230" y="1740" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_AdminCancelDenied_di" bpmnElement="End_AdminCancelDenied"><dc:Bounds x="1450" y="1762" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1423" y="1805" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminCheckCancelState_di" bpmnElement="Task_AdminCheckCancelState"><dc:Bounds x="1230" y="1840" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AdminCancelState_di" bpmnElement="Gateway_AdminCancelState" isMarkerVisible="true"><dc:Bounds x="1425" y="1855" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1500" y="1815" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminDenyCancelState_di" bpmnElement="Task_AdminDenyCancelState"><dc:Bounds x="1560" y="1950" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_AdminCancelUnavailable_di" bpmnElement="End_AdminCancelUnavailable"><dc:Bounds x="1770" y="1972" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1816" y="1976" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminCancelBooking_di" bpmnElement="Task_AdminCancelBooking"><dc:Bounds x="1560" y="1840" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminFreeCancelledSlot_di" bpmnElement="Task_AdminFreeCancelledSlot"><dc:Bounds x="1750" y="1840" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminRecordCancellation_di" bpmnElement="Task_AdminRecordCancellation"><dc:Bounds x="1940" y="1840" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdminCancelEmail_di" bpmnElement="Task_AdminCancelEmail"><dc:Bounds x="2130" y="1840" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_AdminCancelBooking_di" bpmnElement="End_AdminCancelBooking"><dc:Bounds x="2360" y="1862" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2333" y="1905" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_AdminCheckDisplayRole_di" bpmnElement="Flow_AdminCheckDisplayRole"><di:waypoint x="258" y="1498" /><di:waypoint x="258" y="1640" /><di:waypoint x="330" y="1640" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminDisplayRoleDecision_di" bpmnElement="Flow_AdminDisplayRoleDecision"><di:waypoint x="480" y="1640" /><di:waypoint x="550" y="1640" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminDisplayAllBookings_di" bpmnElement="Flow_AdminDisplayAllBookings"><di:waypoint x="600" y="1640" /><di:waypoint x="635" y="1640" /><di:waypoint x="635" y="1620" /><di:waypoint x="670" y="1620" /><bpmndi:BPMNLabel><dc:Bounds x="600" y="1580" width="65" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminDisplayOwnBookings_di" bpmnElement="Flow_AdminDisplayOwnBookings"><di:waypoint x="575" y="1665" /><di:waypoint x="575" y="1720" /><di:waypoint x="670" y="1720" /><bpmndi:BPMNLabel><dc:Bounds x="590" y="1685" width="75" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminSelectFromAll_di" bpmnElement="Flow_AdminSelectFromAll"><di:waypoint x="820" y="1620" /><di:waypoint x="980" y="1620" /><di:waypoint x="980" y="1480" /><di:waypoint x="1050" y="1480" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelAccessDecision_di" bpmnElement="Flow_AdminCancelAccessDecision"><di:waypoint x="1070" y="1880" /><di:waypoint x="1110" y="1880" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelAccessAllowed_di" bpmnElement="Flow_AdminCancelAccessAllowed"><di:waypoint x="1160" y="1880" /><di:waypoint x="1230" y="1880" /><bpmndi:BPMNLabel><dc:Bounds x="1180" y="1855" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelAccessDenied_di" bpmnElement="Flow_AdminCancelAccessDenied"><di:waypoint x="1135" y="1855" /><di:waypoint x="1135" y="1780" /><di:waypoint x="1230" y="1780" /><bpmndi:BPMNLabel><dc:Bounds x="1145" y="1795" width="20" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelDeniedEnd_di" bpmnElement="Flow_AdminCancelDeniedEnd"><di:waypoint x="1380" y="1780" /><di:waypoint x="1450" y="1780" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelStateDecision_di" bpmnElement="Flow_AdminCancelStateDecision"><di:waypoint x="1380" y="1880" /><di:waypoint x="1425" y="1880" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelStateAllowed_di" bpmnElement="Flow_AdminCancelStateAllowed"><di:waypoint x="1475" y="1880" /><di:waypoint x="1560" y="1880" /><bpmndi:BPMNLabel><dc:Bounds x="1505" y="1855" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelStateDenied_di" bpmnElement="Flow_AdminCancelStateDenied"><di:waypoint x="1450" y="1905" /><di:waypoint x="1450" y="1990" /><di:waypoint x="1560" y="1990" /><bpmndi:BPMNLabel><dc:Bounds x="1460" y="1940" width="20" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelUnavailableEnd_di" bpmnElement="Flow_AdminCancelUnavailableEnd"><di:waypoint x="1710" y="1990" /><di:waypoint x="1770" y="1990" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminFreeCancelledSlot_di" bpmnElement="Flow_AdminFreeCancelledSlot"><di:waypoint x="1710" y="1880" /><di:waypoint x="1750" y="1880" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminRecordCancellation_di" bpmnElement="Flow_AdminRecordCancellation"><di:waypoint x="1900" y="1880" /><di:waypoint x="1940" y="1880" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelEmail_di" bpmnElement="Flow_AdminCancelEmail"><di:waypoint x="2090" y="1880" /><di:waypoint x="2130" y="1880" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdminCancelBookingEnd_di" bpmnElement="Flow_AdminCancelBookingEnd"><di:waypoint x="2280" y="1880" /><di:waypoint x="2360" y="1880" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_AdminCancelNotice_di" bpmnElement="MessageFlow_AdminCancelNotice"><di:waypoint x="2205" y="1840" /><di:waypoint x="2205" y="1350" /><di:waypoint x="3300" y="1350" /><di:waypoint x="3300" y="270" /><di:waypoint x="2638" y="270" /><di:waypoint x="2638" y="167" /><bpmndi:BPMNLabel><dc:Bounds x="3310" y="350" width="90" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
