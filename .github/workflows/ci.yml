@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # No packages.lock.json, so setup-dotnet's built-in cache is unavailable.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend-main/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - run: dotnet restore backend-main
+      - run: dotnet build backend-main --no-restore -warnaserror
+      # Integration tests use Testcontainers (Docker is available on ubuntu runners).
+      - run: dotnet test backend-main --no-build --logger "trx;LogFileName=results.trx"
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: backend-main-test-results
+          path: backend-main/**/TestResults/*.trx
+          if-no-files-found: ignore
+          retention-days: 7
+
+  backend-ml:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-ml
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend-ml/uv.lock
+      # uv picks the Python version from backend-ml/.python-version (3.12).
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  docker-smoke:
+    needs: [backend-main, backend-ml, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare env
+        run: cp .env.example .env
+      - name: Build images
+        run: docker compose build
+      - name: Start stack
+        run: docker compose up -d
+      - name: Wait for services
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/health >/dev/null 2>&1 \
+              && curl -fsS http://localhost:8000/ml/health >/dev/null 2>&1; then
+              echo "Services are up after ~$((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Timed out waiting for services"
+          exit 1
+      - name: Smoke checks
+        run: |
+          set -euo pipefail
+
+          health=$(curl -fsS http://localhost:8080/api/health)
+          echo "health: $health"
+          echo "$health" | grep -q '"database":"ok"' || { echo "database not ok"; exit 1; }
+
+          # Unknown API route must be a JSON 404, not the SPA fallback.
+          headers=$(mktemp)
+          code=$(curl -s -D "$headers" -o /dev/null -w '%{http_code}' http://localhost:8080/api/does-not-exist)
+          [ "$code" = "404" ] || { echo "expected 404, got $code"; exit 1; }
+          grep -i '^content-type:.*application/problem+json' "$headers" \
+            || { echo "404 is not application/problem+json"; cat "$headers"; exit 1; }
+
+          # SPA index is served at /.
+          code=$(curl -s -o /tmp/index.html -w '%{http_code}' http://localhost:8080/)
+          [ "$code" = "200" ] || { echo "expected 200 for /, got $code"; exit 1; }
+          grep -qi '<html' /tmp/index.html || { echo "/ is not HTML"; exit 1; }
+      - name: Dump diagnostics
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
