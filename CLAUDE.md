@@ -19,7 +19,7 @@ Každé rozhodnutie musí byť obhájiteľné voči týmto požiadavkám. Ak by 
 | Práca s 2 separátnymi SQL databázami | 2 inštancie PostgreSQL: `salon_main` a `salon_ml`; každý backend pristupuje len k svojej |
 | Machine Learning (5 b) | Predikcia odchodu zákazníka (scikit-learn) v ML backende |
 | BPMN (5 b) | ≥ 60 činností, 2 bazény, jeden s ≥ 3 dráhami, ≥ 1 podproces, viac brán — `docs/bpmn/` |
-| Nasadenie (5 b) | Docker Compose, **4 kontajnery**: `db-main`, `db-ml`, `app` (.NET + zbuildený React), `ml` |
+| Nasadenie (5 b) | Docker Compose, základ **4 kontajnery**: `db-main`, `db-ml`, `app` (.NET + zbuildený React), `ml` (viac je povolené — potvrdil vyučujúci); produkcia na Azure VM (SPEC §11.1) |
 
 Bodovanie: IS 15 b (backend 10 + frontend 5), ML 5 b, BPMN 5 b, nasadenie 5 b.
 
@@ -127,7 +127,7 @@ docker compose down -v        # zmaže aj dáta
 1. `docs/SPEC.md` je zdroj pravdy. Ak meníš kontrakt API alebo DB schému, uprav SPEC v tom istom commite.
 2. Pracuj po fázach z `docs/PLAN.md`. Nerob veci z budúcich fáz; po dokončení odškrtni úlohy.
 3. Ak je niečo nejasné alebo v rozpore so zadaním, **opýtaj sa** — nevymýšľaj požiadavky.
-4. Drž to jednoduché: žiadna Clean Architecture/CQRS/MediatR, žiadny repository pattern nad EF Core, žiadny AutoMapper, žiadny message broker, žiadne ďalšie služby ani kontajnery (zadanie povoľuje 3–4).
+4. Drž to jednoduché: žiadna Clean Architecture/CQRS/MediatR, žiadny repository pattern nad EF Core, žiadny AutoMapper, žiadny message broker. Ďalší kontajner (zadanie určuje minimum, nie maximum) pridaj iba s jasným dôvodom (napr. reverse proxy pre HTTPS) a po odsúhlasení.
 5. Novú knižnicu mimo stacku pridaj až po odsúhlasení.
 6. Pred tým, ako povieš „hotovo“, spusti build, testy a lint dotknutých častí a napíš výsledok. Ak niečo padá, povedz to.
 7. Migrácie generuj nástrojmi (`dotnet ef`, `alembic revision --autogenerate`), skontroluj ich a nikdy neupravuj už aplikovanú migráciu.

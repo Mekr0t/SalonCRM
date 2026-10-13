@@ -8,7 +8,7 @@ Zdroj pravdy pre implementáciu. Pri zmene kontraktu API alebo DB schémy uprav 
 
 **Voliteľné (až po MVP):** zrušenie rezervácie zákazníkom cez odkaz s tokenom; hodnotenie návštevy cez odkaz (1–5) + príznak `avg_rating` v ML; absencie pracovníkov.
 
-**Mimo rozsahu:** e-mailové/SMS notifikácie (mail server by bol 5. kontajner), online platby, zákaznícke účty, viac pobočiek.
+**Mimo rozsahu:** e-mailové/SMS notifikácie (mail server by bol ďalší kontajner a mimo rozsahu MVP), online platby, zákaznícke účty, viac pobočiek.
 
 ## 2. Roly a oprávnenia
 
@@ -457,9 +457,18 @@ V compose sa premenné mapujú na .NET konfiguráciu (`ConnectionStrings__Main`,
 
 **Akceptácia:** čistý klon → `cp .env.example .env` → `docker compose up --build` → http://localhost:8080 → prihlásenie adminom → ML dashboard → „Prepočítať predikcie“ funguje.
 
+### 11.1 Produkčné nasadenie — Azure
+
+- Cieľ: **jedna Linux VM v Azure** (predplatné Azure for Students), na nej ten istý `docker-compose.yml` ako lokálne. Žiadne spravované Azure služby (DB ostávajú kontajnery).
+- VM má DNS label (`<nazov>.<region>.cloudapp.azure.com`); frontend aj ML sú na **rovnakom hostname** (rôzne porty), takže cookie `salon_sid` so `SameSite=Lax` funguje rovnako ako na localhoste.
+- Na VM sa mení iba `.env`: `VITE_ML_API_URL` a `CORS_ORIGINS` ukazujú na hostname VM, nové heslá a `INTERNAL_API_KEY`. Porty DB (5432/5433) sa von **nepublikujú** (NSG povolí iba 22, 8080, 8000).
+- HTTPS zatiaľ nie; vyžaduje reverse proxy ako ďalší kontajner (vyučujúci potvrdil, že viac ako 4 kontajnery je OK) — rozhodne sa vo Fáze 9.
+- CI (GitHub Actions) iba builduje a testuje; nasadenie je zatiaľ ručné (ssh → `git pull` → `docker compose up -d --build`).
+
 ## 12. Známe obmedzenia (vedomé zjednodušenia)
 
 - E-mail zákazníka sa neoveruje — ktokoľvek môže rezervovať pod cudzím e-mailom.
 - Dáta sú syntetické; metriky modelu dokazujú funkčnosť pipeline, nie reálnu presnosť.
 - ML nepozná vzťah zákazník–pracovník, takže pri `/ml/predictions/{customerId}` neoveruje, či ho User obsluhuje. Riziko odchodu považujeme za nízko citlivý údaj.
-- URL ML služby sa zapéka do buildu frontendu — nasadenie je určené pre localhost.
+- URL ML služby sa zapéka do buildu frontendu — pri zmene hostname (localhost ↔ Azure VM) treba image `app` zbuildovať znova.
+- Produkcia na Azure VM beží zatiaľ cez HTTP bez TLS (§11.1).

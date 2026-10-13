@@ -121,8 +121,10 @@ SPEC: §11
 - [x] Dockerfile pre `app` (multi-stage: frontend build → dotnet publish → runtime s `wwwroot`), Dockerfile pre `ml`, SPA fallback mimo `/api`
 - [x] Kompletný `docker-compose.yml` (4 kontajnery, healthchecky, `depends_on`, volumes, env z `.env`)
 - [ ] README: spustenie jedným príkazom, demo účty, porty
+- [ ] Azure VM (§11.1): vytvorenie VM + DNS label + NSG, inštalácia Dockeru, `.env` pre produkciu, nasadenie, návod v README
+- [ ] Rozhodnúť HTTPS (reverse proxy ako ďalší kontajner — vyučujúci potvrdil, že viac ako 4 kontajnery je OK) a ručné vs. automatické nasadenie (CD)
 
-**Hotovo, keď:** čistý klon → `cp .env.example .env` → `docker compose up --build` → na http://localhost:8080 funguje všetko vrátane ML; po `docker compose down -v` a novom štarte sa dáta znova vytvoria.
+**Hotovo, keď:** čistý klon → `cp .env.example .env` → `docker compose up --build` → na http://localhost:8080 funguje všetko vrátane ML; po `docker compose down -v` a novom štarte sa dáta znova vytvoria. To isté funguje na Azure VM cez jej hostname.
 
 ## Fáza 10 — BPMN
 
