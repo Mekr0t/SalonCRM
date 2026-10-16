@@ -52,9 +52,11 @@ public sealed class AvailabilityService(AppDbContext db, IOptions<SalonOptions> 
         return SlotCalculator.IsValidGridSlot(startsAtUtc, Salon, service.DurationMinutes, earliest, latest);
     }
 
-    // Slots of a local date that have at least one free employee. employeeId restricts to that employee.
+    // Slots of a local date that have at least one free employee. employeeId restricts to that employee;
+    // excludeAppointmentId ignores one appointment (rescheduling).
     public async Task<DayAvailability> GetDayAsync(
-        Service service, DateOnly date, Guid? employeeId, BookingMode mode, CancellationToken ct)
+        Service service, DateOnly date, Guid? employeeId, BookingMode mode, CancellationToken ct,
+        Guid? excludeAppointmentId = null)
     {
         var employees = await EligibleEmployeesAsync(service.Id, ct);
         if (employeeId is not null)
@@ -64,9 +66,15 @@ public sealed class AvailabilityService(AppDbContext db, IOptions<SalonOptions> 
 
         var (dayStart, dayEnd) = SlotCalculator.DayBoundsUtc(date, Salon.Zone);
         var ids = employees.Select(e => e.Id).ToList();
-        var appointments = await db.Appointments.AsNoTracking()
+        var query = db.Appointments.AsNoTracking()
             .Where(a => ids.Contains(a.EmployeeId) && a.Status != AppointmentStatus.Cancelled
-                && a.StartsAt < dayEnd && a.EndsAt > dayStart)
+                && a.StartsAt < dayEnd && a.EndsAt > dayStart);
+        if (excludeAppointmentId is { } excluded)
+        {
+            query = query.Where(a => a.Id != excluded); // the appointment being rescheduled does not block itself
+        }
+
+        var appointments = await query
             .Select(a => new { a.EmployeeId, a.StartsAt, a.EndsAt })
             .ToListAsync(ct);
 

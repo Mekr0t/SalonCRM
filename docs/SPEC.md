@@ -165,14 +165,17 @@ Scheduled ──▶ Cancelled   User pred starts_at, Admin kedykoľvek
 Completed, NoShow, Cancelled = konečné stavy
 ```
 
-- Pri `Completed` je povinné `paymentMethod`; `amount` je predvolene `price` (dá sa upraviť, napr. zľava).
-- Preplánovanie (`startsAt`, Admin aj `employeeId`) iba v stave `Scheduled`, s rovnakou kontrolou slotu.
-- Neplatný prechod stavu → 409.
+- Pri `Completed` je povinné `paymentMethod`; `amount` je predvolene `price` (dá sa upraviť, napr. zľava alebo doplnková služba; 0–10 000 €, max. 2 desatinné miesta).
+- Preplánovanie (`startsAt`, Admin aj `employeeId`) iba v stave `Scheduled`, s rovnakou kontrolou slotu ako telefonická rezervácia (bez predstihu, nie do minulosti); preplánovávaný termín sa z obsadených intervalov vynecháva. `staffNote` sa dá upraviť v ľubovoľnom stave. V `PATCH` chýbajúce pole alebo `null` = nemeniť, prázdny reťazec = vymazať.
+- Neplatný prechod stavu → 409. Prechod je atomický (podmienený `UPDATE … WHERE status = 'Scheduled'`), takže pri súbehu (napr. complete a cancel naraz) uspeje práve jeden.
+- Telefonická rezervácia (`POST /api/appointments`): rovnaké vstupy ako verejná (zákazník find-or-create podľa e-mailu, `gdprConsent: true` = pracovník potvrdzuje, že súhlas získal), `source = Staff`, bez predstihu 60 min, nie do minulosti. User rezervuje vždy pre seba; Admin pre zvoleného pracovníka, bez `employeeId` sa priradí podľa pravidla „ktokoľvek“ (§4.1).
 
 ### 4.4 Rozsah dát pre rolu User
 - Termíny: `employee_id = aktuálny používateľ`.
 - Zákazníci: tí, ktorí majú aspoň jeden termín s aktuálnym používateľom; v detaile iba história jeho termínov.
 - Cudzí záznam → 404. Filter je vždy súčasťou databázového dotazu.
+- User, ktorý pošle `employeeId` iného pracovníka (filter zoznamu termínov, vytvorenie, preplánovanie), dostane 403 — nejde o konkrétny záznam, ale o akciu mimo jeho roly.
+- Počty návštev a útrata v zozname aj detaile zákazníka sa pre Usera počítajú iba z jeho termínov.
 
 ### 4.5 Používatelia a služby
 - Mazanie nahrádza deaktivácia (`is_active = false`); deaktivácia zároveň zruší všetky sessions používateľa.
@@ -209,7 +212,7 @@ Completed, NoShow, Cancelled = konečné stavy
 | GET | `/api/public/availability?serviceId=&date=YYYY-MM-DD&employeeId=` | verejné | `[{ startsAt, employees: [{ id, fullName }] }]` |
 | POST | `/api/public/bookings` | verejné | rezervácia (§4.2) → `{ appointmentId, startsAt, serviceName, employeeName, price }` |
 | **Termíny** | | | |
-| GET | `/api/appointments?from=&to=&status=&employeeId=` | User (svoje), Admin | zoznam; `employeeId` iba Admin |
+| GET | `/api/appointments?from=&to=&status=&employeeId=` | User (svoje), Admin | zoznam; `from` a `to` povinné, rozsah max. 92 dní; `employeeId` iba Admin |
 | GET | `/api/appointments/{id}` | User (svoje), Admin | detail vrátane zákazníka a platby |
 | POST | `/api/appointments` | User (pre seba), Admin | termín za zákazníka, `source = Staff`, zákazník find-or-create podľa e-mailu |
 | PATCH | `/api/appointments/{id}` | User (svoje), Admin | preplánovanie, `staffNote` |
@@ -217,10 +220,10 @@ Completed, NoShow, Cancelled = konečné stavy
 | POST | `/api/appointments/{id}/cancel` | User (svoje), Admin | |
 | POST | `/api/appointments/{id}/no-show` | User (svoje), Admin | |
 | **Zákazníci** | | | |
-| GET | `/api/customers?search=&page=&pageSize=` | User (svoji), Admin | zoznam s počtom návštev a poslednou návštevou |
+| GET | `/api/customers?search=&page=&pageSize=` | User (svoji), Admin | zoznam s počtom návštev a poslednou návštevou; hľadanie v mene, e-maile a telefóne (bez ohľadu na veľkosť písmen); `pageSize` predvolene 20, max. 100; odpoveď `{ items, page, pageSize, totalCount }` |
 | GET | `/api/customers/{id}` | User (svoji), Admin | detail + história termínov a platieb |
 | PATCH | `/api/customers/{id}` | User (svoji), Admin | `fullName`, `phone`, `notes` |
-| POST | `/api/customers/lookup` | User (svoji), Admin | `{ ids: [] }` → `[{ id, fullName, email }]` — mená pre ML zoznamy |
+| POST | `/api/customers/lookup` | User (svoji), Admin | `{ ids: [] }` (max. 500) → `[{ id, fullName, email }]` — mená pre ML zoznamy; cudzie a neexistujúce id sa vynechajú |
 | GET | `/api/customers/{id}/retention-actions` | Admin | |
 | POST | `/api/customers/{id}/retention-actions` | Admin | `{ channel, note, churnProbability? }` |
 | **Admin — používatelia a sessions** | | | |
@@ -491,6 +494,7 @@ V compose sa premenné mapujú na .NET konfiguráciu (`ConnectionStrings__Main`,
 ## 12. Známe obmedzenia (vedomé zjednodušenia)
 
 - E-mail zákazníka sa neoveruje — ktokoľvek môže rezervovať pod cudzím e-mailom.
+- Telefonická rezervácia hľadá zákazníka podľa e-mailu (§4.2), takže pracovník si ňou môže „pripojiť“ existujúceho zákazníka kolegyne a od tej chvíle vidí jeho kontakt a poznámky (nie však cudzie termíny ani útratu). Je to zámer: kto zákazníka obsluhuje, potrebuje poznať jeho poznámky (typ pleti, alergie). Pracovníci sú dôveryhodní zamestnanci; termín, ktorý vytvorí User, je vždy priradený jemu (`employee_id`, `source = Staff`), takže je dohľadateľné, kto si zákazníka pripojil.
 - Dáta sú syntetické; metriky modelu dokazujú funkčnosť pipeline, nie reálnu presnosť.
 - ML nepozná vzťah zákazník–pracovník, takže pri `/ml/predictions/{customerId}` neoveruje, či ho User obsluhuje. Riziko odchodu považujeme za nízko citlivý údaj.
 - URL ML služby sa zapéka do buildu frontendu — pri zmene hostname (localhost ↔ Azure VM) treba image `app` zbuildovať znova.

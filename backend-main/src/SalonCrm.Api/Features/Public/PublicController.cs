@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using SalonCrm.Api.Data;
 using SalonCrm.Api.Domain;
+using SalonCrm.Api.Features.Common;
 using SalonCrm.Api.Features.Scheduling;
 
 namespace SalonCrm.Api.Features.Public;
@@ -36,11 +36,9 @@ public sealed record BookingResponse(
 [ApiController]
 [AllowAnonymous]
 [Route("api/public")]
-public class PublicController(AppDbContext db, AvailabilityService availability, TimeProvider timeProvider)
+public class PublicController(AppDbContext db, AvailabilityService availability, BookingService booking)
     : ControllerBase
 {
-    private const string SlotTakenDetail = "Vybraný termín už nie je voľný.";
-
     [HttpGet("services")]
     public async Task<List<PublicServiceDto>> Services(CancellationToken ct) =>
         await db.Services.AsNoTracking()
@@ -80,10 +78,7 @@ public class PublicController(AppDbContext db, AvailabilityService availability,
     {
         if (request.GdprConsent != true)
         {
-            return Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Bad Request",
-                detail: "Na rezerváciu je potrebný súhlas so spracovaním osobných údajov.");
+            return this.BadRequestProblem(Messages.GdprRequired);
         }
 
         var service = await availability.FindActiveServiceAsync(request.ServiceId!.Value, ct);
@@ -92,104 +87,19 @@ public class PublicController(AppDbContext db, AvailabilityService availability,
             return NotFound();
         }
 
-        var startsAt = request.StartsAt!.Value.Kind switch
+        var startsAt = BookingService.ToUtc(request.StartsAt!.Value);
+        var outcome = await booking.CreateAsync(
+            new BookingInput(
+                service, request.EmployeeId, startsAt, request.FullName, request.Email,
+                request.Phone, request.Note, null),
+            BookingMode.Public, AppointmentSource.Online, ct);
+        if (outcome.Failure != BookingFailure.None)
         {
-            DateTimeKind.Utc => request.StartsAt.Value,
-            DateTimeKind.Local => request.StartsAt.Value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(request.StartsAt.Value, DateTimeKind.Utc), // no offset given: treat as UTC
-        };
-
-        if (!availability.IsValidSlot(service, startsAt, BookingMode.Public))
-        {
-            return Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Bad Request",
-                detail: "Neplatný čas termínu.");
+            return BookingService.ToProblem(this, outcome.Failure);
         }
 
-        var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(startsAt, availability.Zone));
-        var day = await availability.GetDayAsync(service, date, null, BookingMode.Public, ct);
-        var offer = day.Slots.FirstOrDefault(s => s.StartsAt == startsAt);
-        EmployeeRef? employee = null;
-        if (offer is not null)
-        {
-            employee = request.EmployeeId is { } wanted
-                ? offer.Employees.FirstOrDefault(e => e.Id == wanted)
-                : AvailabilityService.PickEmployee(offer.Employees, day.DayCounts);
-        }
-
-        if (employee is null)
-        {
-            return SlotTaken();
-        }
-
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        var email = request.Email.Trim();
-        var emailNormalized = email.ToLowerInvariant();
-        var phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
-        var note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
-        var appointmentId = Guid.CreateVersion7();
-
-        // Second attempt only after losing the race to create the same new customer.
-        for (var attempt = 0; attempt < 2; attempt++)
-        {
-            var customer = await db.Customers.FirstOrDefaultAsync(c => c.EmailNormalized == emailNormalized, ct);
-            var isNew = customer is null;
-            if (customer is null)
-            {
-                customer = new Customer
-                {
-                    Email = email,
-                    EmailNormalized = emailNormalized,
-                    FullName = request.FullName.Trim(),
-                    Phone = phone,
-                    GdprConsentAt = now,
-                    CreatedAt = now,
-                };
-                db.Customers.Add(customer);
-            }
-            else if (customer.Phone is null && phone is not null)
-            {
-                customer.Phone = phone; // name and consent timestamp of an existing customer stay untouched
-            }
-
-            db.Appointments.Add(new Appointment
-            {
-                Id = appointmentId,
-                CustomerId = customer.Id,
-                EmployeeId = employee.Id,
-                ServiceId = service.Id,
-                StartsAt = startsAt,
-                EndsAt = startsAt.AddMinutes(service.DurationMinutes),
-                Status = AppointmentStatus.Scheduled,
-                Price = service.Price,
-                Source = AppointmentSource.Online,
-                CustomerNote = note,
-                CreatedAt = now,
-                UpdatedAt = now,
-            });
-
-            try
-            {
-                await db.SaveChangesAsync(ct);
-                return StatusCode(
-                    StatusCodes.Status201Created,
-                    new BookingResponse(appointmentId, startsAt, service.Name, employee.FullName, service.Price));
-            }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation })
-            {
-                return SlotTaken();
-            }
-            catch (DbUpdateException ex) when (isNew && attempt == 0
-                && ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-            {
-                db.ChangeTracker.Clear(); // same new customer created concurrently: re-read and reuse it
-            }
-        }
-
-        return SlotTaken(); // unreachable in practice
+        return StatusCode(
+            StatusCodes.Status201Created,
+            new BookingResponse(outcome.AppointmentId, startsAt, service.Name, outcome.Employee!.FullName, service.Price));
     }
-
-    private ObjectResult SlotTaken() =>
-        Problem(statusCode: StatusCodes.Status409Conflict, title: "Conflict", detail: SlotTakenDetail);
 }
