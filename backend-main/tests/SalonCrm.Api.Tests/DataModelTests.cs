@@ -242,7 +242,9 @@ public class DataModelTests(ApiFactory factory)
 
         Assert.Equal(1, await db.Users.CountAsync(u => u.Email.EndsWith("@salon.local") && u.Role == UserRole.Admin));
         Assert.Equal(4, await db.Users.CountAsync(u => u.Email.EndsWith("@salon.local") && u.Role == UserRole.User));
-        Assert.Equal(14, await db.Services.CountAsync(s => s.IsActive));
+        // Only seeded services (performed by @salon.local staff): other tests on the shared host create their own.
+        Assert.Equal(14, await db.Services.CountAsync(s => s.IsActive
+            && s.UserServices.Any(us => us.User.Email.EndsWith("@salon.local"))));
 
         async Task<int> Count(string email) =>
             await db.UserServices.CountAsync(us => us.User.Email == email);

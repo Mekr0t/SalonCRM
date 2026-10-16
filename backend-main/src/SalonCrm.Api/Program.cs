@@ -3,12 +3,15 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using SalonCrm.Api.Auth;
 using SalonCrm.Api.Data;
 using SalonCrm.Api.Data.Seed;
 using SalonCrm.Api.Domain;
+using SalonCrm.Api.Features.Scheduling;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +23,9 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<BaseSeeder>();
 builder.Services.AddScoped<SessionService>();
+builder.Services.AddScoped<AvailabilityService>();
+builder.Services.AddSingleton<IValidateOptions<SalonOptions>, SalonOptionsValidator>();
+builder.Services.AddOptions<SalonOptions>().BindConfiguration(SalonOptions.SectionName).ValidateOnStart();
 builder.Services.AddDbContext<AppDbContext>(o => o
     .UseNpgsql(builder.Configuration.GetConnectionString("Main"))
     .UseSnakeCaseNamingConvention());
@@ -41,9 +47,22 @@ builder.Services.AddRateLimiter(o =>
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
         }));
+    o.AddPolicy("booking", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = httpContext.RequestServices.GetRequiredService<IConfiguration>()
+                .GetValue("RateLimiting:BookingPermitLimit", 10),
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0,
+        }));
     o.OnRejected = async (context, ct) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        var policy = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
+        var detail = policy == "booking"
+            ? "Príliš veľa rezervácií. Skúste to znova neskôr."
+            : "Príliš veľa pokusov o prihlásenie. Skúste to znova o chvíľu.";
         await context.HttpContext.RequestServices.GetRequiredService<IProblemDetailsService>().WriteAsync(
             new ProblemDetailsContext
             {
@@ -54,7 +73,7 @@ builder.Services.AddRateLimiter(o =>
                     Type = "https://tools.ietf.org/html/rfc6585#section-4",
                     Status = StatusCodes.Status429TooManyRequests,
                     Title = "Too Many Requests",
-                    Detail = "Príliš veľa pokusov o prihlásenie. Skúste to znova o chvíľu.",
+                    Detail = detail,
                 },
             });
     };

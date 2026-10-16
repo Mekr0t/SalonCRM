@@ -12,6 +12,8 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
         {
             t.HasCheckConstraint("ck_appointments_ends_after_starts", "ends_at > starts_at");
             t.HasCheckConstraint("ck_appointments_price", "price >= 0");
+            t.HasCheckConstraint("ck_appointments_status", EnumChecks.In<AppointmentStatus>("status"));
+            t.HasCheckConstraint("ck_appointments_source", EnumChecks.In<AppointmentSource>("source"));
         });
         b.HasKey(x => x.Id);
         b.Property(x => x.Id).ValueGeneratedNever();

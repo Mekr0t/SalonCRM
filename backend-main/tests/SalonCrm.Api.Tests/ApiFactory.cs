@@ -33,6 +33,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             ["Cookie:Secure"] = "false",
             // High enough that functional tests never hit the login rate limit.
             ["RateLimiting:LoginPermitLimit"] = "100000",
+            ["RateLimiting:BookingPermitLimit"] = "100000",
         }));
         return base.CreateHost(builder);
     }

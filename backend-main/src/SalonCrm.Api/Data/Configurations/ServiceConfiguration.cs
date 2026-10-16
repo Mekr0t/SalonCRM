@@ -12,6 +12,7 @@ public class ServiceConfiguration : IEntityTypeConfiguration<Service>
         {
             t.HasCheckConstraint("ck_services_duration_minutes", "duration_minutes > 0 AND duration_minutes % 15 = 0");
             t.HasCheckConstraint("ck_services_price", "price >= 0");
+            t.HasCheckConstraint("ck_services_category", EnumChecks.In<ServiceCategory>("category"));
         });
         b.HasKey(x => x.Id);
         b.Property(x => x.Id).ValueGeneratedNever();
