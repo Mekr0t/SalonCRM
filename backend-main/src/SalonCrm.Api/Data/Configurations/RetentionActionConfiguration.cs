@@ -8,7 +8,8 @@ public class RetentionActionConfiguration : IEntityTypeConfiguration<RetentionAc
 {
     public void Configure(EntityTypeBuilder<RetentionAction> b)
     {
-        b.ToTable("retention_actions");
+        b.ToTable("retention_actions", t =>
+            t.HasCheckConstraint("ck_retention_actions_channel", EnumChecks.In<RetentionChannel>("channel")));
         b.HasKey(x => x.Id);
         b.Property(x => x.Id).ValueGeneratedNever();
         b.Property(x => x.ChurnProbability).HasPrecision(4, 3);

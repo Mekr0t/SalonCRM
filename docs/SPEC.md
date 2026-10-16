@@ -102,7 +102,7 @@ Názvy v snake_case, PK `uuid`, časy `timestamptz` v UTC, enumy ako text.
 
 Indexy: `(employee_id, starts_at)`, `(customer_id, starts_at)`, `(status)`.
 
-Check constrainty: `ck_appointments_ends_after_starts` (`ends_at > starts_at`), `ck_appointments_price` (`price >= 0`), `ck_services_duration_minutes` (`duration_minutes > 0 AND duration_minutes % 15 = 0`), `ck_services_price` (`price >= 0`), `ck_payments_amount` (`amount >= 0`; zľava znižuje sumu, ale nikdy nie pod 0).
+Check constrainty: `ck_appointments_ends_after_starts` (`ends_at > starts_at`), `ck_appointments_price` (`price >= 0`), `ck_services_duration_minutes` (`duration_minutes > 0 AND duration_minutes % 15 = 0`), `ck_services_price` (`price >= 0`), `ck_payments_amount` (`amount >= 0`; zľava znižuje sumu, ale nikdy nie pod 0). Každý enum stĺpec má check constraint s povolenými hodnotami enumu (`ck_users_role`, `ck_services_category`, `ck_appointments_status`, `ck_appointments_source`, `ck_payments_method`, `ck_retention_actions_channel`).
 
 Okrem uvedených indexov EF vytvára index na každý cudzí kľúč (napr. `sessions.user_id`, `appointments.service_id`). Všetky cudzie kľúče sú `ON DELETE RESTRICT` — nič sa nemaže, iba deaktivuje.
 
@@ -139,17 +139,22 @@ ALTER TABLE appointments ADD CONSTRAINT ex_appointments_no_overlap
 ## 4. Biznis pravidlá
 
 ### 4.1 Otváracie hodiny a sloty
-- Konfigurácia `Salon:OpeningHours` v appsettings: Po–Pi 8:00–18:00, So 8:00–13:00, Ne zatvorené; časové pásmo `Europe/Bratislava`.
-- Krok slotov 15 min. Najskorší začiatok = teraz + 60 min (pre prihláseného používateľa sa predstih neuplatňuje — walk-in). Najneskôr 60 dní dopredu.
-- Slot je voľný pre službu S a pracovníka E, ak: začiatok aj koniec sú v otváracích hodinách, E je aktívny, E má S v `user_services` a E nemá prekrývajúci sa termín so stavom ≠ `Cancelled`.
-- Ak zákazník pracovníka nevyberie („ktokoľvek“), priradí sa voľný pracovník s najmenším počtom termínov v daný deň (pri zhode podľa mena) — deterministicky.
+- Konfigurácia `Salon` v appsettings: `TimeZone` (`Europe/Bratislava`), `SlotStepMinutes` (15), `MinLeadMinutes` (60), `MaxDaysAhead` (60), `OpeningHours` po dňoch v týždni (`{ "Open": "08:00", "Close": "18:00" }`): Po–Pi 8:00–18:00, So 8:00–13:00; chýbajúci deň (Ne) = zatvorené. Validuje sa pri štarte.
+- Krok slotov 15 min od otvorenia. Najskorší začiatok = teraz + 60 min pre verejnosť; personál (telefonická rezervácia, preplánovanie) predstih nemá, ale nesmie ísť do minulosti (najskôr = teraz). Najneskôr 60 dní dopredu (dátumy v časovom pásme salónu).
+- Slot je voľný pre službu S a pracovníka E, ak: začiatok aj koniec sú v otváracích hodinách, E je aktívny, E má S v `user_services` (bez ohľadu na rolu) a E nemá prekrývajúci sa termín so stavom ≠ `Cancelled`.
+- Ak zákazník pracovníka nevyberie („ktokoľvek“), priradí sa voľný pracovník s najmenším počtom termínov (≠ `Cancelled`) v daný deň, pri zhode podľa mena, potom podľa id — deterministicky.
+- Prechod letného času je v nedeľu v noci (salón zatvorený), mení sa však posun voči UTC — sloty sa počítajú v lokálnom čase a prevádzajú do UTC.
+- `GET /api/public/availability` pre zatvorený deň alebo dátum mimo okna (minulosť, > 60 dní) vráti prázdny zoznam.
 
 ### 4.2 Verejná rezervácia
 - Vstup: `serviceId`, `employeeId?`, `startsAt`, `fullName`, `email`, `phone?`, `note?`, `gdprConsent` (musí byť `true`).
 - Zákazník: find-or-create podľa `email_normalized`. Existujúcemu sa meno neprepisuje; telefón sa doplní, ak chýbal.
 - Vznikne termín `Scheduled`, `source = Online`, `price` = aktuálna cena služby.
-- Slot sa overí znova pri zápise; súbeh zachytí exclusion constraint → 409 „Vybraný termín už nie je voľný.“
-- Rate limit: 10 rezervácií / 10 min / IP.
+- `gdprConsent` ≠ `true` → 400. Existujúcemu zákazníkovi ostáva pôvodné `gdpr_consent_at`.
+- `startsAt`, ktorý nikdy nemôže byť slotom (mimo otváracích hodín, mimo mriežky 15 min, pred najskorším začiatkom, za 60 dní) → 400 „Neplatný čas termínu.“
+- Platný slot, ktorý nie je voľný (pre zvoleného alebo žiadneho pracovníka), → 409 „Vybraný termín už nie je voľný.“ Slot sa overí znova pri zápise; súbeh zachytí exclusion constraint (`23P01`) → rovnaká 409. Súbežné vytvorenie toho istého nového zákazníka (unique `email_normalized`) sa zachytí a použije sa existujúci záznam.
+- Neaktívna alebo neexistujúca služba → 404.
+- Rate limit: 10 rezervácií / 10 min / IP (`RateLimiting:BookingPermitLimit`) → 429.
 
 ### 4.3 Stavy termínu
 
@@ -232,6 +237,7 @@ Completed, NoShow, Cancelled = konečné stavy
 | POST | `/api/admin/services` | Admin | |
 | PUT | `/api/admin/services/{id}` | Admin | |
 | POST | `/api/admin/services/{id}/deactivate` | Admin | |
+| POST | `/api/admin/services/{id}/activate` | Admin | vrátenie omylom deaktivovanej služby |
 | **Admin — štatistiky** | | | |
 | GET | `/api/admin/stats/overview?from=&to=` | Admin | tržby, dokončené návštevy, miera no-show, noví zákazníci, priemerná hodnota návštevy |
 | GET | `/api/admin/stats/monthly?months=12` | Admin | po mesiacoch: tržby, návštevy, noví zákazníci |

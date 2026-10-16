@@ -58,12 +58,12 @@ SPEC: §2, §4.5, §5, §6 (auth, admin/users, admin/sessions)
 ## Fáza 3 — Rezervácie a jadro CRM
 SPEC: §4, §6 (public, appointments, customers, admin/services, admin/stats)
 
-- [ ] Správa služieb (admin), verejné služby, pracovníci pre službu, dostupnosť slotov
-- [ ] Verejná rezervácia (find-or-create zákazníka, súhlas GDPR, rate limit), 409 pri kolízii (`23P01`)
+- [x] Správa služieb (admin), verejné služby, pracovníci pre službu, dostupnosť slotov
+- [x] Verejná rezervácia (find-or-create zákazníka, súhlas GDPR, rate limit), 409 pri kolízii (`23P01`)
 - [ ] Termíny: zoznam, detail, vytvorenie personálom, preplánovanie, complete s platbou, cancel, no-show — so scopingom pre User
 - [ ] Zákazníci: zoznam, detail s históriou, úprava, `lookup` — so scopingom
 - [ ] Štatistiky pre admina
-- [ ] Check constrainty pre enum stĺpce (`users.role`, `services.category`, `appointments.status`/`source`, `payments.method`, `retention_actions.channel`) — nová migrácia; DB odmietne neplatnú hodnotu aj mimo API
+- [x] Check constrainty pre enum stĺpce (`users.role`, `services.category`, `appointments.status`/`source`, `payments.method`, `retention_actions.channel`) — nová migrácia; DB odmietne neplatnú hodnotu aj mimo API
 - [ ] Testy: prekrývajúce sa rezervácie → 409; sloty rešpektujú otváracie hodiny, trvanie a existujúce termíny; User nevidí cudzí termín ani zákazníka (404); complete vytvorí platbu; neplatné prechody stavov → 409
 
 **Hotovo, keď:** tok „rezervácia → dokončenie s platbou → štatistika“ funguje cez API a testy prejdú.

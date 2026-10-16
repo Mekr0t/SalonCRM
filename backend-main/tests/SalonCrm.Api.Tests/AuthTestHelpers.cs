@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SalonCrm.Api.Auth;
 using SalonCrm.Api.Data;
 
@@ -103,17 +104,28 @@ internal static class AuthTestHelpers
 
     // A separate host on a brand new migrated + seeded database, for tests that alter the seeded accounts.
     public static async Task<WebApplicationFactory<Program>> CreateFreshHostAsync(
-        this ApiFactory factory, Dictionary<string, string?>? extraSettings = null)
+        this ApiFactory factory, Dictionary<string, string?>? extraSettings = null, TimeProvider? clock = null)
     {
         await using var fresh = await TestSupport.CreateEmptyDatabaseAsync(factory.ConnectionString);
         var connectionString = fresh.Database.GetConnectionString()!;
-        return factory.WithWebHostBuilder(b => b.ConfigureAppConfiguration((_, c) =>
+        return factory.WithWebHostBuilder(b =>
         {
-            c.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Main"] = connectionString });
-            if (extraSettings is not null)
+            b.ConfigureAppConfiguration((_, c) =>
             {
-                c.AddInMemoryCollection(extraSettings);
+                c.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Main"] = connectionString });
+                if (extraSettings is not null)
+                {
+                    c.AddInMemoryCollection(extraSettings);
+                }
+            });
+            if (clock is not null)
+            {
+                b.ConfigureServices(services =>
+                {
+                    services.RemoveAll<TimeProvider>();
+                    services.AddSingleton(clock);
+                });
             }
-        }));
+        });
     }
 }

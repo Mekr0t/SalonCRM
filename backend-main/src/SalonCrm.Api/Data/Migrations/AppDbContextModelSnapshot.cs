@@ -107,6 +107,10 @@ namespace SalonCrm.Api.Data.Migrations
                             t.HasCheckConstraint("ck_appointments_ends_after_starts", "ends_at > starts_at");
 
                             t.HasCheckConstraint("ck_appointments_price", "price >= 0");
+
+                            t.HasCheckConstraint("ck_appointments_source", "source IN ('Online', 'Staff')");
+
+                            t.HasCheckConstraint("ck_appointments_status", "status IN ('Scheduled', 'Completed', 'Cancelled', 'NoShow')");
                         });
                 });
 
@@ -198,6 +202,8 @@ namespace SalonCrm.Api.Data.Migrations
                     b.ToTable("payments", null, t =>
                         {
                             t.HasCheckConstraint("ck_payments_amount", "amount >= 0");
+
+                            t.HasCheckConstraint("ck_payments_method", "method IN ('Cash', 'Card')");
                         });
                 });
 
@@ -243,7 +249,10 @@ namespace SalonCrm.Api.Data.Migrations
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_retention_actions_customer_id");
 
-                    b.ToTable("retention_actions", (string)null);
+                    b.ToTable("retention_actions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_retention_actions_channel", "channel IN ('Phone', 'Email', 'Sms', 'InPerson')");
+                        });
                 });
 
             modelBuilder.Entity("SalonCrm.Api.Domain.Service", b =>
@@ -284,6 +293,8 @@ namespace SalonCrm.Api.Data.Migrations
 
                     b.ToTable("services", null, t =>
                         {
+                            t.HasCheckConstraint("ck_services_category", "category IN ('Skin', 'Nails', 'BrowsLashes', 'Waxing', 'Massage', 'Makeup')");
+
                             t.HasCheckConstraint("ck_services_duration_minutes", "duration_minutes > 0 AND duration_minutes % 15 = 0");
 
                             t.HasCheckConstraint("ck_services_price", "price >= 0");
@@ -387,7 +398,10 @@ namespace SalonCrm.Api.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_users_email");
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_users_role", "role IN ('Admin', 'User')");
+                        });
                 });
 
             modelBuilder.Entity("SalonCrm.Api.Domain.UserService", b =>
