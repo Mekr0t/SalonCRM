@@ -171,19 +171,23 @@ Completed, NoShow, Cancelled = konečné stavy
 
 ### 4.5 Používatelia a služby
 - Mazanie nahrádza deaktivácia (`is_active = false`); deaktivácia zároveň zruší všetky sessions používateľa.
-- Admin nemôže deaktivovať sám seba a vždy musí ostať aspoň jeden aktívny Admin.
+- Admin nemôže deaktivovať sám seba a vždy musí ostať aspoň jeden aktívny Admin. To isté platí pre zmenu roly: Admin si nemôže odobrať rolu Admin a posledný aktívny Admin sa nedá degradovať → 409.
+- E-mail používateľa je unikátny (porovnanie v lowercase); duplicita → 409. Heslo má aspoň 8 znakov.
+- Reset hesla (`POST /api/admin/users/{id}/password`) zruší všetky sessions daného používateľa; ak admin resetuje heslo sám sebe, jeho aktuálna session ostáva.
 - Pri deaktivácii pracovníka s budúcimi termínmi API vráti ich počet a UI zobrazí upozornenie (termíny ostávajú, admin ich preplánuje).
 - Služba sa nemaže, len deaktivuje (história ostáva konzistentná).
 
 ## 5. Autentifikácia a sessions (main)
 
-- **Login** `POST /api/auth/login` `{ email, password }`: overenie cez `PasswordHasher<User>`, používateľ musí byť aktívny. Chybné údaje → 401 so všeobecnou správou (neprezrádzať, či e-mail existuje). Rate limit 5 pokusov / min / IP.
+- **Login** `POST /api/auth/login` `{ email, password }`: overenie cez `PasswordHasher<User>`, používateľ musí byť aktívny. Chybné údaje, neexistujúci e-mail aj neaktívny účet → rovnaká 401 so všeobecnou správou „Nesprávny e-mail alebo heslo.“ (neprezrádzať, či e-mail existuje; aj pri neexistujúcom e-maile sa vykoná overenie hesla, aby to neprezradil čas odpovede). Rate limit 5 pokusov / min / IP → 429 ProblemDetails.
 - Pri úspechu: náhodný token 32 B (base64url) → cookie `salon_sid` (HttpOnly, `SameSite=Lax`, `Path=/`, `Secure` podľa `Cookie:Secure`). Do DB sa ukladá iba SHA-256 hash. `expires_at` = teraz + 12 h; nečinnosť > 2 h = neplatná session.
 - **Každý request**: vlastný `SessionAuthenticationHandler` prečíta cookie → hash → aktívna session (nie revoked, nie expirovaná, nečinnosť < 2 h) a aktívny používateľ → `ClaimsPrincipal` (NameIdentifier, Name, Role). `last_seen_at` aktualizovať najviac raz za minútu.
 - **Logout** `POST /api/auth/logout` → `revoked_at = teraz`, zmazanie cookie. **Me** `GET /api/auth/me` → aktuálny používateľ alebo 401.
 - Neprihlásený request na API → 401 JSON (žiadny redirect na login), zlá rola → 403.
 - CSRF: `SameSite=Lax` + mutujúce endpointy prijímajú iba `application/json` + CORS bez wildcardu. Pre tento projekt postačuje.
 - Admin vidí aktívne sessions a môže ich zrušiť — demonštrácia server-side sessions.
+- Autorizácia: globálna fallback policy vyžaduje prihlásenie (poistka), každý endpoint má aj tak explicitne `[Authorize(...)]` alebo `[AllowAnonymous]`; verejné ostávajú health, OpenAPI/Scalar (iba Development) a SPA fallback.
+- Texty v `detail`, ktoré zobrazí UI (chybné prihlásenie, rate limit, pravidlá o adminoch, kolízia termínu), sú po slovensky; technické chyby po anglicky. Enumy v JSON ako stringy.
 
 ## 6. API — main backend
 

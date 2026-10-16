@@ -48,10 +48,10 @@ SPEC: §3, §6 (`/api/health`)
 ## Fáza 2 — Prihlásenie, sessions, roly, používatelia
 SPEC: §2, §4.5, §5, §6 (auth, admin/users, admin/sessions)
 
-- [ ] `SessionAuthenticationHandler`, login / logout / me, hashovanie tokenov, nečinnosť a absolútna expirácia, rate limit na login
-- [ ] 401 / 403 ako JSON (bez redirectov)
-- [ ] Admin: používatelia (bez mazania, priradenie služieb, deaktivácia rušiaca sessions, reset hesla), zoznam a rušenie sessions
-- [ ] Integračné testy: login nastaví cookie; `me` funguje; po logoute 401; deaktivovaný používateľ stratí session; User na `/api/admin/*` → 403; posledný admin sa nedá deaktivovať
+- [x] `SessionAuthenticationHandler`, login / logout / me, hashovanie tokenov, nečinnosť a absolútna expirácia, rate limit na login
+- [x] 401 / 403 ako JSON (bez redirectov)
+- [x] Admin: používatelia (bez mazania, priradenie služieb, deaktivácia rušiaca sessions, reset hesla), zoznam a rušenie sessions
+- [x] Integračné testy: login nastaví cookie; `me` funguje; po logoute 401; deaktivovaný používateľ stratí session; User na `/api/admin/*` → 403; posledný admin sa nedá deaktivovať
 
 **Hotovo, keď:** testy prejdú a cez OpenAPI UI sa dá prihlásiť, zavolať chránený endpoint a odhlásiť.
 
@@ -63,6 +63,7 @@ SPEC: §4, §6 (public, appointments, customers, admin/services, admin/stats)
 - [ ] Termíny: zoznam, detail, vytvorenie personálom, preplánovanie, complete s platbou, cancel, no-show — so scopingom pre User
 - [ ] Zákazníci: zoznam, detail s históriou, úprava, `lookup` — so scopingom
 - [ ] Štatistiky pre admina
+- [ ] Check constrainty pre enum stĺpce (`users.role`, `services.category`, `appointments.status`/`source`, `payments.method`, `retention_actions.channel`) — nová migrácia; DB odmietne neplatnú hodnotu aj mimo API
 - [ ] Testy: prekrývajúce sa rezervácie → 409; sloty rešpektujú otváracie hodiny, trvanie a existujúce termíny; User nevidí cudzí termín ani zákazníka (404); complete vytvorí platbu; neplatné prechody stavov → 409
 
 **Hotovo, keď:** tok „rezervácia → dokončenie s platbou → štatistika“ funguje cez API a testy prejdú.
@@ -122,6 +123,7 @@ SPEC: §11
 - [x] Kompletný `docker-compose.yml` (4 kontajnery, healthchecky, `depends_on`, volumes, env z `.env`)
 - [ ] README: spustenie jedným príkazom, demo účty, porty
 - [ ] Azure VM (§11.1): vytvorenie VM + DNS label + NSG, inštalácia Dockeru, `.env` pre produkciu, nasadenie, návod v README
+- [ ] Ak pribudne reverse proxy: `ForwardedHeaders` s dôveryhodnou proxy, inak rate limit prihlásenia zdieľajú všetci klienti (vidí iba IP proxy)
 - [ ] Rozhodnúť HTTPS (reverse proxy ako ďalší kontajner — vyučujúci potvrdil, že viac ako 4 kontajnery je OK) a ručné vs. automatické nasadenie (CD)
 
 **Hotovo, keď:** čistý klon → `cp .env.example .env` → `docker compose up --build` → na http://localhost:8080 funguje všetko vrátane ML; po `docker compose down -v` a novom štarte sa dáta znova vytvoria. To isté funguje na Azure VM cez jej hostname.
