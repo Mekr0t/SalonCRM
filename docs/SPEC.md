@@ -185,6 +185,15 @@ Completed, NoShow, Cancelled = konečné stavy
 - Pri deaktivácii pracovníka s budúcimi termínmi API vráti ich počet a UI zobrazí upozornenie (termíny ostávajú, admin ich preplánuje).
 - Služba sa nemaže, len deaktivuje (história ostáva konzistentná).
 
+### 4.6 Štatistiky (admin)
+- Obdobie: `from`, `to` = dátumy `YYYY-MM-DD` v časovom pásme salónu, oba vrátane; predvolene od 1. dňa aktuálneho mesiaca po dnešok; `from > to` alebo rozsah > 731 dní → 400. `months` = 1–24 (predvolene 12), kalendárne mesiace v čase salónu vrátane aktuálneho (neúplného); súvislý rad aj s nulovými mesiacmi.
+- Termín patrí do obdobia podľa `starts_at` (v čase salónu), nie podľa času platby.
+- **Tržby** = súčet `payments.amount` dokončených termínov v období. **Návštevy** = počet `Completed`. **Priemerná hodnota návštevy** = tržby / návštevy (`null`, ak 0 návštev).
+- **Miera no-show** = `NoShow / (Completed + NoShow)` v období (zrušené a ešte neuzavreté termíny sa nerátajú; `null`, ak menovateľ 0).
+- **Nový zákazník** = zákazník, ktorého prvá `Completed` návšteva (celkovo) padla do obdobia.
+- **Vyťaženosť pracovníka** = súčet minút jeho termínov ≠ `Cancelled` v období / súčet minút otváracích hodín v období (rovnaké pre všetkých; absencie nie sú v MVP). Zoznam obsahuje aktívnych pracovníkov s ≥ 1 službou a každého, kto má v období termín.
+- Peniaze zaokrúhlené na 2 desatinné miesta; miery ako podiel 0–1 (formátuje frontend). Agregácie sa počítajú v SQL.
+
 ## 5. Autentifikácia a sessions (main)
 
 - **Login** `POST /api/auth/login` `{ email, password }`: overenie cez `PasswordHasher<User>`, používateľ musí byť aktívny. Chybné údaje, neexistujúci e-mail aj neaktívny účet → rovnaká 401 so všeobecnou správou „Nesprávny e-mail alebo heslo.“ (neprezrádzať, či e-mail existuje; aj pri neexistujúcom e-maile sa vykoná overenie hesla, aby to neprezradil čas odpovede). Rate limit 5 pokusov / min / IP → 429 ProblemDetails.
@@ -242,10 +251,10 @@ Completed, NoShow, Cancelled = konečné stavy
 | POST | `/api/admin/services/{id}/deactivate` | Admin | |
 | POST | `/api/admin/services/{id}/activate` | Admin | vrátenie omylom deaktivovanej služby |
 | **Admin — štatistiky** | | | |
-| GET | `/api/admin/stats/overview?from=&to=` | Admin | tržby, dokončené návštevy, miera no-show, noví zákazníci, priemerná hodnota návštevy |
-| GET | `/api/admin/stats/monthly?months=12` | Admin | po mesiacoch: tržby, návštevy, noví zákazníci |
-| GET | `/api/admin/stats/services?from=&to=` | Admin | top služby (počet, tržby) |
-| GET | `/api/admin/stats/employees?from=&to=` | Admin | po pracovníkoch: návštevy, tržby, vyťaženosť % (rezervované min / otváracie min) |
+| GET | `/api/admin/stats/overview?from=&to=` | Admin | `{ from, to, revenue, completedVisits, noShowRate, newCustomers, averageVisitValue }` (§4.6) |
+| GET | `/api/admin/stats/monthly?months=12` | Admin | `[{ month: "YYYY-MM", revenue, completedVisits, newCustomers }]` od najstaršieho |
+| GET | `/api/admin/stats/services?from=&to=` | Admin | `[{ serviceId, name, category, completedVisits, revenue }]` podľa tržieb zostupne (aj neaktívne služby s návštevami) |
+| GET | `/api/admin/stats/employees?from=&to=` | Admin | `[{ employeeId, fullName, completedVisits, revenue, bookedMinutes, openingMinutes, utilization }]` (utilization 0–1, §4.6) |
 
 ## 7. Interné API (main → používa ml)
 
