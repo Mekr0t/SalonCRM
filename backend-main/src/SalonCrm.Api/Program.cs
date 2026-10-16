@@ -24,6 +24,7 @@ builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<BaseSeeder>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<AvailabilityService>();
+builder.Services.AddScoped<BookingService>();
 builder.Services.AddSingleton<IValidateOptions<SalonOptions>, SalonOptionsValidator>();
 builder.Services.AddOptions<SalonOptions>().BindConfiguration(SalonOptions.SectionName).ValidateOnStart();
 builder.Services.AddDbContext<AppDbContext>(o => o
