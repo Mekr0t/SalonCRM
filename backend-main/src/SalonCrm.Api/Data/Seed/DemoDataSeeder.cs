@@ -20,7 +20,8 @@ public sealed class DemoDataSeeder(
             return;
         }
 
-        var services = await db.Services.AsNoTracking().Where(s => s.IsActive).OrderBy(s => s.Name).ToListAsync(ct);
+        var services = await db.Services.AsNoTracking().Where(s => s.IsActive).ToListAsync(ct);
+        services.Sort((left, right) => string.CompareOrdinal(left.Name, right.Name));
         var workers = await db.Users.AsNoTracking().Where(u => u.IsActive && u.Role == UserRole.User)
             .OrderBy(u => u.Email).ToListAsync(ct);
         var links = await db.UserServices.AsNoTracking().ToListAsync(ct);
@@ -48,7 +49,7 @@ public sealed class DemoDataSeeder(
     }
 
     // One local random stream: never change Bogus' global seed or depend on DB-generated UUID ordering.
-    private sealed class HistoryGenerator(
+    internal sealed class HistoryGenerator(
         DateTime now, SalonOptions salon, List<Service> services, Dictionary<Guid, List<User>> eligible)
     {
         private readonly Faker _faker = new("sk") { Random = new Randomizer(42) };
