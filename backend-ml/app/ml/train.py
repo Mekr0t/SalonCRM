@@ -26,6 +26,10 @@ BASELINE_THRESHOLD = 2.0
 MODEL_THRESHOLD = 0.5
 
 
+class InsufficientDataError(ValueError):
+    """Not enough history to train a model (too few snapshots, a single class, empty dataset)."""
+
+
 @dataclass
 class TrainingResult:
     algorithm: str
@@ -147,9 +151,9 @@ def train(
 ) -> TrainingResult:
     train_df, valid_df = split_by_time(dataset, gap, horizon_days)
     if train_df.empty or valid_df.empty:
-        raise ValueError("Not enough history: training or validation set is empty")
+        raise InsufficientDataError("Not enough history: training or validation set is empty")
     if train_df["y"].nunique() < 2:
-        raise ValueError("Training set contains a single class; cannot fit a classifier")
+        raise InsufficientDataError("Training set contains a single class; cannot fit a classifier")
 
     warnings: list[str] = []
     baseline = baseline_metrics(valid_df, warnings)
