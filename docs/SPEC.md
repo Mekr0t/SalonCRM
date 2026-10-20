@@ -382,6 +382,21 @@ Spresnenia výpočtu:
 | GET | `/ml/runs` | Admin | história behov (sync, tréning, predikcia) |
 | GET | `/ml/stats/risk-distribution` | Admin | počty zákazníkov podľa úrovne rizika |
 
+#### Tvary odpovedí a stavové kódy
+
+JSON je camelCase; výnimka: kľúče objektu `features` sú názvy príznakov z §8.4 (snake_case). Chyby sú ProblemDetails (`application/problem+json`). Každý chránený endpoint: 401 bez platnej session, 403 pri zlej role, 503 ak je main nedostupný pri overovaní session. Interaktívna dokumentácia (OpenAPI): `/docs`.
+
+- **`POST /ml/pipeline/run`** → 200 `{ syncRunId, modelVersionId, predictionRunId, referenceDate, customersCount, appointmentsCount, customersScored, algorithm, metrics, baselineMetrics, candidates: [{ algorithm, metrics }], beatsBaseline, warnings, durationSeconds }`. `metrics` aj `baselineMetrics` majú tvar `{ rocAuc (môže byť null), precision, recall, f1, confusionMatrix, positiveRate, n }`. `beatsBaseline` = ROC-AUC víťaza > ROC-AUC baseline (false, ak je jedna z hodnôt null). Chyby: **409** beh už prebieha (PostgreSQL advisory lock), **422** nedostatok histórie na tréning (sync zostane uložený, model sa nevytvorí), **502** export z main má neplatný formát (sync sa označí `failed`), **503** main je nedostupný (sync `failed`).
+- **`GET /ml/health`** → `{ status, database, activeModel }`; nikdy nevyhodí chybu (pri nedostupnej DB `activeModel: false`).
+- **`GET /ml/predictions?risk=&limit=&offset=`** → `{ items: [{ customerId, churnProbability, riskLevel, explanation, createdAt, predictionRunId }], total }`. Posledná predikcia každého zákazníka, zoradené podľa `churnProbability` zostupne, potom `customerId`; `total` rešpektuje filter `risk` (`low|medium|high`, inak 422). `limit` 1–500 (predvolene 50), `offset` ≥ 0.
+- **`GET /ml/predictions/{customerId}`** → položka ako vyššie + `features` (objekt príznak → číslo). Ak zákazník nemá predikciu (alebo neexistuje), odpoveď je **200** s `riskLevel: "insufficient_data"` a `churnProbability`, `explanation`, `features`, `createdAt`, `predictionRunId` = `null` (ML tak neprezrádza existenciu zákazníka). Neplatné UUID → 422.
+- **`POST /ml/predictions/lookup`** `{ customerIds: [uuid] }` (najviac 500, inak 422; duplicity sa zlúčia) → `{ items: [...] }`, jedna položka na každé unikátne ID v poradí požiadavky, tvar ako v zozname; ID bez predikcie majú `riskLevel: "insufficient_data"` a `null` hodnoty. Vybavuje sa jedným dotazom do DB.
+- **`GET /ml/predictions/{customerId}/history`** → `{ customerId, items: [{ createdAt, churnProbability, riskLevel, predictionRunId }] }` vzostupne podľa `createdAt`; bez predikcií prázdny zoznam.
+- **`GET /ml/model`** → `{ id, createdAt, algorithm, params, metrics, baselineMetrics, candidates, featureImportances: [{ feature, importance }] (zostupne), nTrain, nValid, positiveRate }`; ak ešte neexistuje model → **404**.
+- **`GET /ml/runs?limit=`** (predvolene 20, najviac 100) → `{ syncRuns: [{ id, startedAt, finishedAt, status, customersCount, appointmentsCount, error }], modelVersions: [{ id, createdAt, algorithm, rocAuc, baselineRocAuc, isActive }], predictionRuns: [{ id, createdAt, modelVersionId, referenceDate, customersScored }] }`, každý zoznam od najnovšieho.
+- **Neočakávané chyby** (vrátane `MODEL_DIR`, do ktorého sa nedá zapísať, pri pipeline) → **500** ProblemDetails bez interných detailov; aktívny model ostáva nezmenený.
+- **`GET /ml/stats/risk-distribution`** → `{ low, medium, high, insufficientData, total, lastPredictionAt }`. Počty z poslednej predikcie každého zákazníka; `insufficientData` = zákazníci v `raw_customers` bez akejkoľvek predikcie; `total = low + medium + high + insufficientData`; `lastPredictionAt` je `null`, ak predikcie neexistujú.
+
 ## 9. Frontend
 
 - Dva API klienti v `src/api/`: `mainApi` (base `/api`, same-origin) a `mlApi` (base `VITE_ML_API_URL`, napr. `http://localhost:8000`), oba s `credentials: 'include'`. 401 z ktoréhokoľvek → odhlásiť v UI a presmerovať na `/login`.

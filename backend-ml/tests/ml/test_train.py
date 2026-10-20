@@ -5,7 +5,14 @@ import pytest
 from app.ml.features import FEATURE_COLUMNS
 from app.ml.labels import build_dataset
 from app.ml.predict import predict_proba
-from app.ml.train import baseline_metrics, load_model, save_model, split_by_time, train
+from app.ml.train import (
+    InsufficientDataError,
+    baseline_metrics,
+    load_model,
+    save_model,
+    split_by_time,
+    train,
+)
 from tests.ml.synthetic import make_dataset
 
 REF = pd.Timestamp("2026-10-12T12:00:00Z")
@@ -101,3 +108,14 @@ def test_split_gap_violation_raises_value_error(dataset):
         split_by_time(dataset, gap=1, horizon_days=90)
     with pytest.raises(ValueError):
         split_by_time(dataset, gap=0)
+
+
+def test_data_checks_raise_insufficient_data_error(dataset):
+    assert issubclass(InsufficientDataError, ValueError)
+    without_validation = dataset[dataset["snapshot_k"] != 0]
+    with pytest.raises(InsufficientDataError, match="Not enough history"):
+        train(without_validation, n_repeats=2)
+    single_class = dataset.copy()
+    single_class.loc[single_class["snapshot_k"] >= 3, "y"] = 0
+    with pytest.raises(InsufficientDataError, match="single class"):
+        train(single_class, n_repeats=2)

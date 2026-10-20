@@ -1,4 +1,5 @@
 import copy
+import warnings
 
 import pandas as pd
 import pytest
@@ -119,6 +120,63 @@ def test_bad_datetime_names_field():
     p["appointments"][0]["startsAt"] = "not a date"
     with pytest.raises(ValueError, match="starts_at"):
         from_export(p)
+
+
+def test_mixed_fractional_second_precision_parses():
+    # System.Text.Json omits the fraction for whole seconds and writes 1-7 digits otherwise.
+    p = {
+        "customers": [
+            {"customerId": "c1", "createdAt": "2025-01-14T09:12:00Z"},
+            {"customerId": "c2", "createdAt": "2025-02-01T10:00:00.123Z"},
+        ],
+        "appointments": [
+            {
+                "appointmentId": "a1",
+                "customerId": "c1",
+                "employeeId": "e1",
+                "serviceId": "s1",
+                "serviceCategory": "Nails",
+                "startsAt": "2026-10-20T12:00:00Z",
+                "createdAt": "2026-10-01T08:00:00Z",
+                "cancelledAt": None,
+                "status": "Completed",
+                "price": 30,
+            },
+            {
+                "appointmentId": "a2",
+                "customerId": "c2",
+                "employeeId": "e1",
+                "serviceId": "s1",
+                "serviceCategory": "Nails",
+                "startsAt": "2026-10-21T09:30:00.123Z",
+                "createdAt": "2026-10-19T12:36:38.654068Z",
+                "cancelledAt": "2026-10-19T13:00:00.1234567Z",
+                "status": "Cancelled",
+                "price": 30,
+            },
+        ],
+    }
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        customers, appts = from_export(p)
+    assert not [w for w in caught if "infer format" in str(w.message)]
+
+    for series in (
+        customers["created_at"],
+        appts["starts_at"],
+        appts["created_at"],
+        appts["cancelled_at"],
+    ):
+        assert str(series.dt.tz) == "UTC"
+
+    assert customers.loc[0, "created_at"] == pd.Timestamp("2025-01-14T09:12:00Z")
+    assert customers.loc[1, "created_at"] == pd.Timestamp("2025-02-01T10:00:00.123Z")
+    assert appts.loc[0, "created_at"] == pd.Timestamp("2026-10-01T08:00:00Z")
+    assert appts.loc[1, "starts_at"].microsecond == 123000
+    assert appts.loc[1, "created_at"].microsecond == 654068
+    assert appts.loc[1, "cancelled_at"].microsecond == 123456
+    assert appts.loc[1, "cancelled_at"].nanosecond == 700
+    assert pd.isna(appts.loc[0, "cancelled_at"])
 
 
 def test_empty_lists_give_empty_frames():
