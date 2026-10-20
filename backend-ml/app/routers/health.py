@@ -3,7 +3,7 @@ from typing import Literal
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from app.db import engine
+from app.db import SessionLocal
 from app.schemas import CamelModel
 
 router = APIRouter(prefix="/ml", tags=["health"])
@@ -16,8 +16,8 @@ class HealthResponse(CamelModel):
 
 def _database_ok() -> bool:
     try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
+        with SessionLocal() as session:
+            session.execute(text("SELECT 1"))
         return True
     except Exception:  # noqa: BLE001 - health must never raise
         return False

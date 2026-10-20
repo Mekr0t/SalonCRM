@@ -101,7 +101,7 @@ dotnet ef migrations add <Nazov> --project backend-main/src/SalonCrm.Api   # vy�
 cd backend-ml && uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload --port 8000
-uv run pytest && uv run ruff check .
+uv run pytest && uv run ruff check .   # pytest vyžaduje bežiaci Docker (Testcontainers spúšťa PostgreSQL 17)
 
 # Frontend (dev na :5173, /api je proxy na :5080, ML sa volá priamo na :8000)
 cd frontend && npm install && npm run dev
