@@ -40,7 +40,7 @@ def _parse_times(df: pd.DataFrame, name: str) -> None:
         if column not in df.columns:
             continue
         try:
-            df[column] = pd.to_datetime(df[column], utc=True)
+            df[column] = pd.to_datetime(df[column], utc=True, format="ISO8601")
         except (ValueError, TypeError) as exc:
             raise ValueError(
                 f"Export '{name}': invalid datetime in field '{column}': {exc}"
