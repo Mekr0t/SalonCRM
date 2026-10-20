@@ -31,6 +31,7 @@ public static class DatabaseInitializer
         }
 
         await scope.ServiceProvider.GetRequiredService<BaseSeeder>().SeedAsync(ct);
+        await scope.ServiceProvider.GetRequiredService<DemoDataSeeder>().SeedAsync(ct);
     }
 
     // Retry only while the server is unreachable or still starting up; real SQL errors

@@ -22,6 +22,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<BaseSeeder>();
+builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<BookingService>();
