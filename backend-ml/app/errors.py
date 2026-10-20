@@ -14,6 +14,7 @@ _TITLES = {
     409: "Conflict",
     422: "Validation Failed",
     500: "Internal Server Error",
+    503: "Service Unavailable",
 }
 
 

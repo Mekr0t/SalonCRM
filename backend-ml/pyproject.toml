@@ -34,4 +34,8 @@ testpaths = ["tests"]
 dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.0",
+    "testcontainers[postgres]>=4.15.0",
 ]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]

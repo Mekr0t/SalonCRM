@@ -71,21 +71,21 @@ SPEC: §4, §6 (public, appointments, customers, admin/services, admin/stats)
 ## Fáza 4 — Demo dáta a interné API
 SPEC: §7, §10
 
-- [ ] Seeder histórie podľa §10 (deterministický, iba nad prázdnou DB)
-- [ ] Filter pre `X-Internal-Api-Key`, `POST /api/internal/sessions/introspect`, `GET /api/internal/ml/export`
-- [ ] Testy: export neobsahuje osobné údaje; zlý alebo chýbajúci kľúč → 401; introspect dodržiava pravidlá platnosti session
+- [x] Seeder histórie podľa §10 (deterministický, iba nad prázdnou DB)
+- [x] Filter pre `X-Internal-Api-Key`, `POST /api/internal/sessions/introspect`, `GET /api/internal/ml/export`
+- [x] Testy: export neobsahuje osobné údaje; zlý alebo chýbajúci kľúč → 401; introspect dodržiava pravidlá platnosti session
 
 **Hotovo, keď:** po `docker compose down -v` a štarte je v DB ~300 zákazníkov a tisíce termínov, kalendáre na 3 týždne dopredu sú naplnené, žiadne prekryvy, export vráti JSON podľa §7.
 
 ## Fáza 5 — ML backend
 SPEC: §8
 
-- [ ] FastAPI projekt (uv, ruff, pytest), konfigurácia cez pydantic-settings, SQLAlchemy 2 + Alembic, tabuľky §8.2 _(kostra hotová, chýbajú tabuľky §8.2)_
+- [x] FastAPI projekt (uv, ruff, pytest), konfigurácia cez pydantic-settings, SQLAlchemy 2 + Alembic, tabuľky §8.2
 - [ ] camelCase JSON, chyby vo formáte ProblemDetails, CORS s credentials
-- [ ] `current_user` cez introspect (+ 30 s cache), `require_role`
+- [x] `current_user` cez introspect (+ 30 s cache), `require_role`
 - [ ] Pipeline: sync → snapshoty → príznaky → labely → kandidáti + baseline → výber → uloženie → predikcia → zdôvodnenia _(ML jadro hotové v `app/ml/` ako čisté funkcie; chýba sync z main a zápis do `salon_ml`)_
 - [ ] Endpointy §8.7, OpenAPI na `/docs`
-- [ ] Testy: leakage test (§8.4); labely na ručne zostavenom mini datasete; hranice úrovní rizika; auth s mockovaným introspectom; pipeline end-to-end na malom syntetickom datasete _(hotové všetko okrem auth s mockovaným introspectom)_
+- [ ] Testy: leakage test (§8.4); labely na ručne zostavenom mini datasete; hranice úrovní rizika; auth s mockovaným introspectom; pipeline end-to-end na malom syntetickom datasete _(hotové okrem pipeline end-to-end nad DB; auth s mockovaným introspectom je hotový)_
 
 **Hotovo, keď:** prihlásený admin (cookie z main) spustí `POST /ml/pipeline/run` a dostane metriky víťaza aj baseline; User na admin endpointy → 403; bez cookie → 401. Ak model neprekoná baseline, Claude to má nahlásiť a vysvetliť prečo — nie potichu ladiť dáta.
 
