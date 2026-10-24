@@ -93,9 +93,13 @@ SPEC: §8
 SPEC: §9
 
 - [x] Vite + React + TS, Tailwind + shadcn/ui, React Router, TanStack Query, react-hook-form + zod, ESLint
-- [ ] `mainApi` a `mlApi` (credentials include, spracovanie ProblemDetails, 401 → login), Vite proxy `/api` → `http://localhost:5080`
-- [ ] AuthProvider, ProtectedRoute s rolami, layout so sidebarom podľa roly, `lib/format.ts`
-- [ ] Stránky `/`, `/rezervacia` (sprievodca), `/login`
+- [x] `mainApi` a `mlApi` (credentials include, spracovanie ProblemDetails, 401 → login), Vite proxy `/api` → `http://localhost:5080`
+- [x] AuthProvider, ProtectedRoute s rolami, layout so sidebarom podľa roly, `lib/format.ts`
+- [x] Stránky `/`, `/rezervacia` (sprievodca), `/login`
+- [x] Odstránenie Vite šablóny (`App.css`, `src/assets/`, frontendový README a pôvodná ikona)
+- [x] Frontendové testy API klienta, validácie rezervácie a dátumov (`npm test`, aj v CI)
+
+Chránené obrazovky zatiaľ obsahujú iba layout a informáciu, že sa pripravujú; ich obsah patrí do Fáz 7 a 8. Anonymná úvodná kontrola `/auth/me` s odpoveďou 401 ponechá verejné stránky dostupné. Pri strate existujúcej session alebo 401 z iného API sa UI odhlási a prejde na `/login`.
 
 **Hotovo, keď:** anonymne sa dá rezervovať (kolízia → zrozumiteľná hláška), admin aj pracovníčka sa prihlásia, refresh stránky drží session, odhlásenie funguje.
 
