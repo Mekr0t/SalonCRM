@@ -22,6 +22,14 @@ export interface ApiClient {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
+type UnauthorizedListener = (path: string) => void
+const unauthorizedListeners = new Set<UnauthorizedListener>()
+
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener)
+  return () => { unauthorizedListeners.delete(listener) }
+}
+
 async function toApiError(res: Response): Promise<ApiError> {
   let title = res.statusText || `HTTP ${res.status}`
   let detail: string | undefined
@@ -54,6 +62,8 @@ export function createApiClient(baseUrl: string): ApiClient {
       return undefined as T
     }
     if (!res.ok) {
+      // Even an empty/non-JSON 401 expires the UI session.
+      if (res.status === 401) unauthorizedListeners.forEach(listener => listener(path))
       throw await toApiError(res)
     }
 

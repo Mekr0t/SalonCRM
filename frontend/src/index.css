@@ -49,24 +49,24 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    --background: oklch(0.985 0.006 95);
+    --foreground: oklch(0.25 0.025 155);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    --primary: oklch(0.40 0.075 160);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
+    --muted-foreground: oklch(0.47 0.02 155);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --ring: oklch(0.55 0.08 160);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -81,6 +81,38 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+}
+
+@layer base {
+  [data-slot="button"] { @apply min-h-11; }
+  a, button, input, textarea { @apply focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary; }
+  button, label:has(input[type="radio"]) { @apply cursor-pointer; }
+  label:not(:has(input)) { @apply mb-2 block text-sm font-medium; }
+  input:not([type="radio"]):not([type="checkbox"]), textarea {
+    @apply block w-full rounded-lg border bg-background px-3 py-2.5 text-base;
+  }
+  input[type="radio"], input[type="checkbox"] { @apply size-4 shrink-0 accent-primary; }
+  input[aria-invalid="true"], textarea[aria-invalid="true"] { @apply border-destructive; }
+}
+
+@layer components {
+  .page-container { @apply mx-auto w-full max-w-6xl px-5 md:px-8; }
+  .brand { @apply inline-flex items-center gap-2 text-xl font-semibold tracking-tight text-primary; }
+  .eyebrow { @apply text-xs font-semibold tracking-widest uppercase text-primary; }
+  .panel { @apply rounded-2xl border bg-card p-5 shadow-xs md:p-7; }
+  .action-link { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90; }
+  .notice { @apply rounded-lg border bg-muted/50 p-4 text-sm leading-relaxed; }
+  .notice-error { @apply border-destructive/30 bg-destructive/5 text-destructive; }
+  .field-error { @apply mt-1 text-sm text-destructive; }
+  .step { @apply flex items-center justify-center gap-2 rounded-lg border px-2 py-3 text-muted-foreground; }
+  .step-active { @apply border-primary/30 bg-primary/10 text-primary; }
+  .choice { @apply flex min-h-12 items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50; }
+  .choice:focus-within { @apply outline-2 outline-offset-2 outline-primary; }
+  .choice-selected { @apply border-primary bg-primary/5; }
+  .summary dt { @apply mb-1 text-sm text-muted-foreground; }
+  .summary dd { @apply font-medium; }
+  .sidebar-link { @apply flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-muted-foreground hover:bg-muted; }
+  .sidebar-active { @apply bg-primary/10 font-medium text-primary; }
 }
 
 .dark {
