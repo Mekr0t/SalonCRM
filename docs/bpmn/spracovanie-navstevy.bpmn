@@ -36,7 +36,7 @@
         <bpmn:flowNodeRef>Task_ExportVisit</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_SendReviewEmail</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Gateway_ReviewBranches</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>SubProcess_CollectReview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidateReview</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Gateway_ReviewValid</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_SendReviewErrors</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_SaveReview</bpmn:flowNodeRef>
@@ -137,23 +137,11 @@
       <bpmn:incoming>Flow_SubmitReview</bpmn:incoming>
       <bpmn:outgoing>Flow_CollectReview</bpmn:outgoing>
     </bpmn:task>
-    <bpmn:subProcess id="SubProcess_CollectReview" name="Kontrola recenzie">
+    <bpmn:task id="Task_ValidateReview" name="Kontrola hodnotenia a väzby na návštevu">
+      <bpmn:documentation>Kontrola povinného celočíselného hodnotenia od 1 do 5 a väzby na dokončenú návštevu. Komentár je voliteľný. Výsledok kontroly je vstupom do následnej rozhodovacej brány.</bpmn:documentation>
       <bpmn:incoming>Flow_CollectReview</bpmn:incoming>
       <bpmn:outgoing>Flow_ReviewDecision</bpmn:outgoing>
-      <bpmn:startEvent id="Start_CollectReview">
-        <bpmn:outgoing>Flow_ValidateReview</bpmn:outgoing>
-      </bpmn:startEvent>
-      <bpmn:task id="Task_ValidateReview" name="Kontrola hodnotenia a väzby na návštevu">
-        <bpmn:documentation>Kontrola povinného celočíselného hodnotenia od 1 do 5 a väzby na dokončenú návštevu. Komentár je voliteľný. Výsledok kontroly je vstupom do následnej rozhodovacej brány.</bpmn:documentation>
-        <bpmn:incoming>Flow_ValidateReview</bpmn:incoming>
-        <bpmn:outgoing>Flow_CollectedReview</bpmn:outgoing>
-      </bpmn:task>
-      <bpmn:endEvent id="End_CollectReview">
-        <bpmn:incoming>Flow_CollectedReview</bpmn:incoming>
-      </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Flow_ValidateReview" sourceRef="Start_CollectReview" targetRef="Task_ValidateReview" />
-      <bpmn:sequenceFlow id="Flow_CollectedReview" sourceRef="Task_ValidateReview" targetRef="End_CollectReview" />
-    </bpmn:subProcess>
+    </bpmn:task>
     <bpmn:exclusiveGateway id="Gateway_ReviewValid" name="Je recenzia platná?">
       <bpmn:incoming>Flow_ReviewDecision</bpmn:incoming>
       <bpmn:outgoing>Flow_ReviewValid</bpmn:outgoing>
@@ -232,8 +220,8 @@
     <bpmn:sequenceFlow id="Flow_OpenReviewForm" sourceRef="Gateway_ReviewBranches" targetRef="Task_OpenReviewForm" />
     <bpmn:sequenceFlow id="Flow_FillReview" sourceRef="Task_OpenReviewForm" targetRef="Task_FillReview" />
     <bpmn:sequenceFlow id="Flow_SubmitReview" sourceRef="Task_FillReview" targetRef="Task_SubmitReview" />
-    <bpmn:sequenceFlow id="Flow_CollectReview" sourceRef="Task_SubmitReview" targetRef="SubProcess_CollectReview" />
-    <bpmn:sequenceFlow id="Flow_ReviewDecision" sourceRef="SubProcess_CollectReview" targetRef="Gateway_ReviewValid" />
+    <bpmn:sequenceFlow id="Flow_CollectReview" sourceRef="Task_SubmitReview" targetRef="Task_ValidateReview" />
+    <bpmn:sequenceFlow id="Flow_ReviewDecision" sourceRef="Task_ValidateReview" targetRef="Gateway_ReviewValid" />
     <bpmn:sequenceFlow id="Flow_ReviewValid" name="Áno" sourceRef="Gateway_ReviewValid" targetRef="Task_SaveReview" />
     <bpmn:sequenceFlow id="Flow_ReviewInvalid" name="Nie" sourceRef="Gateway_ReviewValid" targetRef="Task_SendReviewErrors" />
     <bpmn:sequenceFlow id="Flow_ReviewRetry" sourceRef="Task_SendReviewErrors" targetRef="Task_FillReview" />
@@ -375,26 +363,9 @@
       <bpmndi:BPMNShape id="Task_SubmitReview_di" bpmnElement="Task_SubmitReview">
         <dc:Bounds x="3170" y="150" width="150" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="SubProcess_CollectReview_di" bpmnElement="SubProcess_CollectReview" isExpanded="true">
-        <dc:Bounds x="3350" y="540" width="340" height="180" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Start_CollectReview_di" bpmnElement="Start_CollectReview">
-        <dc:Bounds x="3370" y="612" width="36" height="36" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_ValidateReview_di" bpmnElement="Task_ValidateReview">
-        <dc:Bounds x="3420" y="590" width="150" height="80" />
+        <dc:Bounds x="3440" y="560" width="150" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_CollectReview_di" bpmnElement="End_CollectReview">
-        <dc:Bounds x="3610" y="612" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_ValidateReview_di" bpmnElement="Flow_ValidateReview">
-        <di:waypoint x="3406" y="630" />
-        <di:waypoint x="3420" y="630" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_CollectedReview_di" bpmnElement="Flow_CollectedReview">
-        <di:waypoint x="3570" y="630" />
-        <di:waypoint x="3610" y="630" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Gateway_ReviewValid_di" bpmnElement="Gateway_ReviewValid" isMarkerVisible="true">
         <dc:Bounds x="3750" y="575" width="50" height="50" />
         <bpmndi:BPMNLabel>
@@ -557,10 +528,10 @@
         <di:waypoint x="3320" y="190" />
         <di:waypoint x="3335" y="190" />
         <di:waypoint x="3335" y="600" />
-        <di:waypoint x="3350" y="600" />
+        <di:waypoint x="3440" y="600" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_ReviewDecision_di" bpmnElement="Flow_ReviewDecision">
-        <di:waypoint x="3690" y="600" />
+        <di:waypoint x="3590" y="600" />
         <di:waypoint x="3750" y="600" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_ReviewValid_di" bpmnElement="Flow_ReviewValid">
