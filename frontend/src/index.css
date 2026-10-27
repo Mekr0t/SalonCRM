@@ -85,14 +85,19 @@
 
 @layer base {
   [data-slot="button"] { @apply min-h-11; }
-  a, button, input, textarea { @apply focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary; }
+  a, button, input, textarea, select { @apply focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary; }
   button, label:has(input[type="radio"]) { @apply cursor-pointer; }
   label:not(:has(input)) { @apply mb-2 block text-sm font-medium; }
-  input:not([type="radio"]):not([type="checkbox"]), textarea {
+  input:not([type="radio"]):not([type="checkbox"]), textarea, select {
     @apply block w-full rounded-lg border bg-background px-3 py-2.5 text-base;
   }
   input[type="radio"], input[type="checkbox"] { @apply size-4 shrink-0 accent-primary; }
-  input[aria-invalid="true"], textarea[aria-invalid="true"] { @apply border-destructive; }
+  input[aria-invalid="true"], textarea[aria-invalid="true"], select[aria-invalid="true"] { @apply border-destructive; }
+  table { @apply w-full border-collapse text-left text-sm; }
+  th { @apply border-b bg-muted/40 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground; }
+  td { @apply border-b px-4 py-3 align-top; }
+  tbody tr:last-child td { @apply border-b-0; }
+  caption { @apply pb-3 text-left font-medium; }
 }
 
 @layer components {
@@ -113,6 +118,22 @@
   .summary dd { @apply font-medium; }
   .sidebar-link { @apply flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-muted-foreground hover:bg-muted; }
   .sidebar-active { @apply bg-primary/10 font-medium text-primary; }
+  .calendar-panel {
+    --fc-button-bg-color: var(--primary);
+    --fc-button-border-color: var(--primary);
+    --fc-button-hover-bg-color: color-mix(in oklch, var(--primary), black 15%);
+    --fc-button-hover-border-color: var(--primary);
+    --fc-button-active-bg-color: color-mix(in oklch, var(--primary), black 25%);
+    --fc-button-active-border-color: var(--primary);
+    --fc-today-bg-color: color-mix(in oklch, var(--primary), transparent 94%);
+    --fc-border-color: var(--border);
+    --fc-page-bg-color: var(--card);
+  }
+  .calendar-panel .fc { @apply min-w-[32rem] text-sm; }
+  .calendar-panel .fc-toolbar { @apply flex-wrap gap-3; }
+  .calendar-panel .fc-toolbar-title { @apply text-xl font-semibold; }
+  .calendar-panel .fc-col-header-cell { @apply bg-muted/40; }
+  .calendar-panel .fc-event { @apply cursor-pointer; }
 }
 
 .dark {

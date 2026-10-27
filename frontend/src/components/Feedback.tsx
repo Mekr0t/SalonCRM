@@ -3,6 +3,8 @@ import { ApiError } from '@/api/http'
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
+    if (error.status === 403) return 'Na túto akciu nemáte oprávnenie.'
+    if (error.status === 404) return 'Záznam neexistuje alebo k nemu nemáte prístup.'
     if (error.status === 429) return 'Priveľa pokusov. Počkajte chvíľu a skúste to znova.'
     if (error.status >= 500) return 'Služba je dočasne nedostupná. Skúste to znova neskôr.'
     return error.detail || 'Požiadavku sa nepodarilo spracovať. Skúste to znova.'

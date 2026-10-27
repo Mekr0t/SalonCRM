@@ -99,15 +99,19 @@ SPEC: §9
 - [x] Odstránenie Vite šablóny (`App.css`, `src/assets/`, frontendový README a pôvodná ikona)
 - [x] Frontendové testy API klienta, validácie rezervácie a dátumov (`npm test`, aj v CI)
 
-Chránené obrazovky zatiaľ obsahujú iba layout a informáciu, že sa pripravujú; ich obsah patrí do Fáz 7 a 8. Anonymná úvodná kontrola `/auth/me` s odpoveďou 401 ponechá verejné stránky dostupné. Pri strate existujúcej session alebo 401 z iného API sa UI odhlási a prejde na `/login`.
+Anonymná úvodná kontrola `/auth/me` s odpoveďou 401 ponechá verejné stránky dostupné. Pri strate existujúcej session alebo 401 z iného API sa UI odhlási a prejde na `/login`.
 
 **Hotovo, keď:** anonymne sa dá rezervovať (kolízia → zrozumiteľná hláška), admin aj pracovníčka sa prihlásia, refresh stránky drží session, odhlásenie funguje.
 
 ## Fáza 7 — Frontend: pracovník a admin
 SPEC: §9
 
-- [ ] Kalendár, detail termínu s akciami, telefonická rezervácia, zoznam a detail zákazníka
-- [ ] Admin: prehľad so štatistikami (Recharts), všetky termíny s filtrami, používatelia (vrátane aktívnych sessions), služby a cenník
+- [x] Kalendár (FullCalendar timeGrid, slovenčina, Europe/Bratislava), detail termínu s akciami a platbou, telefonická rezervácia, zoznam a detail zákazníka
+- [x] Admin: prehľad so štatistikami (Recharts), všetky termíny s filtrami, používatelia (vrátane aktívnych sessions), služby a cenník
+- [x] Loading, error a empty stavy, toasty a potvrdenie deštruktívnych akcií
+- [x] Frontendové testy: bratislavský čas a prechod DST, rozsahy dátumov, akcie podľa stavu/roly, platby, validácia zákazníka a stránkovanie
+
+Obrazovky sa načítavajú po jednotlivých trasách. Telefonická rezervácia a preplánovanie overujú zadaný čas na serveri bez verejného 60-minútového predstihu. Sessions sa overujú pri requestoch a návrate do okna; automatický polling by obnovoval čas aktivity a bránil expirácii pri nečinnosti. ML prvky ostávajú vo Fáze 8. Postup ručného overenia je v `docs/FRONTEND-QA.md`.
 
 **Hotovo, keď:** pracovníčka vidí iba svoje termíny a zákazníkov; admin všetko; deaktivácia používateľa ho okamžite odhlási.
 

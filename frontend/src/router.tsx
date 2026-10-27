@@ -5,6 +5,8 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { PublicLayout } from './components/PublicLayout'
 import { AppLayout } from './components/AppLayout'
 
+import { CalendarPage, AppointmentsPage, AppointmentDetailPage, StaffBookingPage, CustomersPage, CustomerDetailPage, OverviewPage, UsersPage, ServicesPage } from './features/WorkspacePages'
+
 export const router = createBrowserRouter([
   { element: <AuthRoot />, children: [
     { element: <PublicLayout />, children: [
@@ -16,13 +18,16 @@ export const router = createBrowserRouter([
     { element: <ProtectedRoute roles={['Admin', 'User']} />, children: [
       { path: '/app', element: <AppLayout />, children: [
         { index: true, element: <AppIndex /> },
-        { path: 'kalendar', element: <WorkspacePage title="Kalendár" /> },
-        { path: 'terminy', element: <WorkspacePage title="Termíny" /> },
-        { path: 'zakaznici', element: <WorkspacePage title="Zákazníci" /> },
+        { path: 'kalendar', element: <CalendarPage /> },
+        { path: 'terminy', element: <AppointmentsPage /> },
+        { path: 'terminy/novy', element: <StaffBookingPage /> },
+        { path: 'terminy/:id', element: <AppointmentDetailPage /> },
+        { path: 'zakaznici', element: <CustomersPage /> },
+        { path: 'zakaznici/:id', element: <CustomerDetailPage /> },
         { element: <ProtectedRoute roles={['Admin']} />, children: [
-          { path: 'prehlad', element: <WorkspacePage title="Prehľad" /> },
-          { path: 'pouzivatelia', element: <WorkspacePage title="Používatelia" /> },
-          { path: 'sluzby', element: <WorkspacePage title="Služby a cenník" /> },
+          { path: 'prehlad', element: <OverviewPage /> },
+          { path: 'pouzivatelia', element: <UsersPage /> },
+          { path: 'sluzby', element: <ServicesPage /> },
           { path: 'ml', element: <WorkspacePage title="Riziko odchodu" /> },
         ] },
         { path: '*', element: <NotFoundPage /> },

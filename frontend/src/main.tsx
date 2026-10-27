@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router'
 import './index.css'
 import { router } from './router'
 import { ApiError } from './api/http'
+import { ToastProvider } from './components/Toast'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,7 +18,7 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ToastProvider><RouterProvider router={router} /></ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 )
