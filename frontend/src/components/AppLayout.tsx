@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 import { CalendarDays, ChartNoAxesCombined, Flower2, List, LogOut, Sparkles, Users, UserRoundCog, BrainCircuit } from 'lucide-react'
 import { useAuth } from '@/auth/auth'
@@ -42,6 +42,6 @@ export function AppLayout() {
         {error != null && <div className="mt-3"><ErrorNotice error={error} /></div>}
       </div>
     </aside>
-    <main className="min-w-0 p-6 lg:p-12"><Outlet /></main>
+    <main className="min-w-0 p-6 lg:p-12"><Suspense fallback={<p role="status">Načítavam stránku…</p>}><Outlet /></Suspense></main>
   </div>
 }

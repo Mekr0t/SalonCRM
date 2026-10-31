@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -21,13 +21,12 @@ type StaffValues = z.infer<typeof staffSchema>
 export function StaffBookingPage() {
   const { user } = useAuth()
   const admin = user?.role === 'Admin'
-  const [params] = useSearchParams()
   const navigate = useNavigate()
   const toast = useToast()
   const client = useQueryClient()
   const [serviceId, setServiceId] = useState('')
   const [employeeId, setEmployeeId] = useState('')
-  const [start, setStart] = useState(() => params.get('startsAt') ?? '')
+  const [start, setStart] = useState('')
   const [timeError, setTimeError] = useState('')
   const submitting = useRef(false)
   const services = useQuery(servicesQuery)
@@ -40,7 +39,7 @@ export function StaffBookingPage() {
   const eligible = admin ? !!employees.data?.length : !!employees.data?.some(employee => employee.id === user?.id)
   const form = useForm<StaffValues>({
     resolver: zodResolver(staffSchema),
-    defaultValues: { fullName: params.get('fullName') ?? '', email: params.get('email') ?? '', phone: params.get('phone') ?? '', note: '', staffNote: '', gdprConsent: false },
+    defaultValues: { fullName: '', email: '', phone: '', note: '', staffNote: '', gdprConsent: false },
   })
   const mutation = useMutation({
     mutationFn: (body: unknown) => mainApi.post<AppointmentDetail>('/appointments', body),

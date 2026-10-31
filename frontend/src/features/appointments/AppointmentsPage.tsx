@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/auth/auth'
 import { ErrorNotice } from '@/components/Feedback'
 import { addCalendarDays, salonDate } from '@/features/public/booking'
-import { appointmentsQuery, employeesQuery, statusNames } from './api'
+import { appointmentsQuery, statusNames } from './api'
+import { adminUsersQuery } from '@/features/admin/api'
 import { appointmentRange } from './time'
 import { AppointmentList } from './AppointmentList'
 
@@ -17,7 +18,7 @@ export function AppointmentsPage() {
   const [employeeId, setEmployeeId] = useState('')
   const range = appointmentRange(from, to ? addCalendarDays(to, 1) : '')
   const appointments = useQuery(appointmentsQuery(range, status, admin ? employeeId : ''))
-  const employees = useQuery({ ...employeesQuery, enabled: admin })
+  const employees = useQuery({ ...adminUsersQuery, enabled: admin })
   return <section className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="eyebrow">Pracovný priestor</p><h1 className="mt-2 text-3xl font-semibold">Termíny</h1><p className="mt-2 text-muted-foreground">{admin ? 'Všetky rezervácie salónu.' : 'Vaše rezervácie a návštevy.'}</p></div><Link className="action-link" to="/app/terminy/novy">Nová telefonická rezervácia</Link></div>
     <div className="panel grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

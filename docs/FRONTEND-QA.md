@@ -33,5 +33,3 @@ Použite lokálne demo dáta (`SEED_DEMO_DATA=true`) a dva oddelené profily pre
 ## Stav overenia pri implementácii
 
 Build, lint, 16 frontendových testov a 245 backendových testov prešli. S reálnymi demo dátami lokálneho API prešlo tiež 15 kontrol serverového vykreslenia deviatich obrazoviek pre obe roly (vrátane histórie, platieb, štatistík a rozsahu dát pracovníka). Serverové vykreslenie nekontroluje rozloženie ani interakcie v prehliadači.
-
-Automatizovaný preklik nebol dokončený: vstavaný prehliadač nevedel priradiť tab k session a Windows automatizácia sa zastavila pri overovaní aktuálnej URL. Manuálny zoznam vyššie preto zostáva potrebný pred finálnym prijatím UI.

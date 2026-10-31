@@ -2,13 +2,14 @@ import { useId, useRef, useState, type ReactNode } from 'react'
 import { Button } from './ui/button'
 import { ErrorNotice } from './Feedback'
 
-export function ConfirmButton({ children, title, description, onConfirm, disabled, variant = 'outline' }: {
+export function ConfirmButton({ children, title, description, onConfirm, disabled, variant = 'outline', closeOnError = false }: {
   children: ReactNode
   title: string
   description: string
   onConfirm: () => Promise<unknown>
   disabled?: boolean
   variant?: 'outline' | 'destructive' | 'default'
+  closeOnError?: boolean
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -19,7 +20,7 @@ export function ConfirmButton({ children, title, description, onConfirm, disable
     setError(null)
     setPending(true)
     try { await onConfirm(); dialog.current?.close() }
-    catch (failure) { setError(failure) }
+    catch (failure) { if (closeOnError) dialog.current?.close(); else setError(failure) }
     finally { setPending(false) }
   }
   return <>

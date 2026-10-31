@@ -24,18 +24,10 @@ export interface AppointmentDetail extends Appointment {
   cancelledAt: string | null
   payment: { amount: number; method: PaymentMethod; paidAt: string; recordedBy: Employee } | null
 }
-export interface AppointmentEmployee extends Employee {
-  isActive: boolean
-  services: { id: string; name: string }[]
-}
 export const statusNames: Record<AppointmentStatus, string> = {
   Scheduled: 'Naplánovaný', Completed: 'Dokončený', Cancelled: 'Zrušený', NoShow: 'Neprišiel',
 }
 export const paymentNames: Record<PaymentMethod, string> = { Cash: 'Hotovosť', Card: 'Karta' }
-export const employeesQuery = {
-  queryKey: ['admin', 'users'],
-  queryFn: () => mainApi.get<AppointmentEmployee[]>('/admin/users'),
-}
 export function appointmentsQuery(range: { from: string; to: string } | null, status = '', employeeId = '') {
   const query = new URLSearchParams(range ?? {})
   if (status) query.set('status', status)
