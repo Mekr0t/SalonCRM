@@ -118,9 +118,12 @@ Obrazovky sa načítavajú po jednotlivých trasách. Telefonická rezervácia a
 ## Fáza 8 — ML v UI (frontend spája oba backendy)
 SPEC: §6 (retenčné akcie), §8.7, §9
 
-- [ ] ML dashboard `/app/ml`: rozdelenie rizika, rizikoví zákazníci s menami z main, model vs. baseline, dôležitosť príznakov, história behov, „Prepočítať predikcie“, prázdny stav bez modelu
-- [ ] Odznaky rizika v kalendári a v zozname zákazníkov (`/ml/predictions/lookup`); riziko, zdôvodnenie a graf vývoja v detaile zákazníka
-- [ ] Retenčné akcie: endpointy v main + dialóg „Zaznamenať kontakt“ z ML dashboardu
+- [x] ML dashboard `/app/ml`: rozdelenie rizika, rizikoví zákazníci s menami z main, model vs. baseline, dôležitosť príznakov, história behov, „Prepočítať predikcie“, prázdny stav bez modelu
+- [x] Odznaky rizika v kalendári a v zozname zákazníkov (`/ml/predictions/lookup`); riziko, zdôvodnenie a graf vývoja v detaile zákazníka
+- [x] Retenčné akcie: endpointy v main + dialóg „Zaznamenať kontakt“ z ML dashboardu (aj z detailu zákazníka)
+- [x] Testy: integračné testy retenčných akcií (main), frontendové testy ML pomocných funkcií
+
+Nedostupná ML služba nezablokuje kalendár, zoznam ani detail zákazníka — odznaky sa len nezobrazia. V kalendári je štítok iba pri strednom a vysokom riziku; presná úroveň a pravdepodobnosť sú v tooltipe.
 
 **Hotovo, keď:** na ML dashboarde vidno v Network tabe requesty na `/api/*` aj na `:8000/ml/*` a zaznamenaný kontakt sa zobrazí v detaile zákazníka.
 

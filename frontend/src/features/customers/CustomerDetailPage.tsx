@@ -9,6 +9,11 @@ import { ErrorNotice } from '@/components/Feedback'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/toast-context'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { predictionHistoryQuery, predictionQuery, retentionActionsQuery } from '@/features/ml/api'
+import { RetentionDialog } from '@/features/ml/RetentionDialog'
+import { RiskBadge } from '@/features/ml/RiskBadge'
+import { channelLabel, formatProbability } from '@/features/ml/risk'
 import { customerQuery, type CustomerDetail } from './api'
 import { customerSchema, customerStatusNames, paymentMethodNames, type CustomerValues } from './customer'
 
@@ -32,6 +37,7 @@ export function CustomerDetailPage() {
         <div className="panel"><p className="text-sm text-muted-foreground">V evidencii od</p><p className="mt-2 text-xl font-semibold">{formatDate(customer.data.createdAt)}</p></div>
       </div>
       {user?.role === 'User' && <p className="text-sm text-muted-foreground">Návštevy, útrata a história zahŕňajú iba termíny u vás.</p>}
+      <ChurnRisk customerId={customer.data.id} customerName={customer.data.fullName} admin={user?.role === 'Admin'} />
       <CustomerEditor key={JSON.stringify([customer.data.id, customer.data.fullName, customer.data.phone, customer.data.notes])} customer={customer.data} />
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">História termínov a platieb</h2>
@@ -84,4 +90,40 @@ function CustomerEditor({ customer }: { customer: CustomerDetail }) {
     {update.isError && <ErrorNotice error={update.error} />}
     <Button type="submit" disabled={update.isPending}>{update.isPending ? 'Ukladám…' : 'Uložiť zmeny'}</Button>
   </form>
+}
+
+function ChurnRisk({ customerId, customerName, admin }: { customerId: string; customerName: string; admin: boolean }) {
+  const prediction = useQuery(predictionQuery(customerId))
+  const history = useQuery(predictionHistoryQuery(customerId))
+  const actions = useQuery({ ...retentionActionsQuery(customerId), enabled: admin })
+  const p = prediction.data
+  const points = history.data?.items.map(item => ({ at: formatDateTime(item.createdAt), probability: item.churnProbability * 100 })) ?? []
+  return <>
+    <section className="panel space-y-5" aria-labelledby="churn-title">
+      <h2 id="churn-title" className="text-xl font-semibold">Riziko odchodu</h2>
+      {prediction.isPending && <p role="status">Načítavam riziko…</p>}
+      {prediction.isError && <p className="notice" role="status">Riziko odchodu sa momentálne nepodarilo načítať.</p>}
+      {p && (p.riskLevel === 'insufficient_data' ? <div className="space-y-2"><RiskBadge level={p.riskLevel} /><p className="text-sm text-muted-foreground">Zákazník má menej ako dve návštevy alebo ešte nebol vyhodnotený, preto riziko odchodu nevieme odhadnúť.</p></div> : <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3"><RiskBadge level={p.riskLevel} /><strong className="text-2xl">{formatProbability(p.churnProbability)}</strong><span className="text-sm text-muted-foreground">pravdepodobnosť odchodu</span></div>
+        {p.explanation && <p className="leading-relaxed">{p.explanation}</p>}
+        {p.createdAt && <p className="text-sm text-muted-foreground">Vypočítané {formatDateTime(p.createdAt)}</p>}
+      </div>)}
+      {history.isSuccess && (points.length === 0 ? <p className="notice">Zatiaľ nie je k dispozícii vývoj rizika v čase.</p> : <div>
+        <h3 className="mb-2 font-semibold">Vývoj pravdepodobnosti</h3>
+        <div className="h-64 w-full" aria-label="Graf vývoja pravdepodobnosti odchodu"><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{ top: 10, right: 20, bottom: 10, left: 0 }} accessibilityLayer><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="at" tick={{ fontSize: 12 }} /><YAxis domain={[0, 100]} unit=" %" width={55} /><Tooltip formatter={value => [`${Number(value).toLocaleString('sk-SK', { maximumFractionDigits: 1 })} %`, 'Pravdepodobnosť']} /><Line dataKey="probability" name="Pravdepodobnosť" stroke="#22634f" strokeWidth={2} dot /></LineChart></ResponsiveContainer></div>
+        <details className="mt-3"><summary className="cursor-pointer text-sm font-medium text-primary">Zobraziť údaje grafu v tabuľke</summary><div className="mt-3 overflow-x-auto"><table><thead><tr><th>Dátum</th><th>Pravdepodobnosť</th></tr></thead><tbody>{history.data.items.map(item => <tr key={item.predictionRunId}><th className="font-medium">{formatDateTime(item.createdAt)}</th><td>{formatProbability(item.churnProbability)}</td></tr>)}</tbody></table></div></details>
+      </div>)}
+    </section>
+    {admin && <section className="panel space-y-5" aria-labelledby="retention-title">
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="retention-title" className="text-xl font-semibold">Retenčné akcie</h2><RetentionDialog customerId={customerId} customerName={customerName} churnProbability={p?.churnProbability ?? null} /></div>
+      {actions.isPending && <p role="status">Načítavam retenčné akcie…</p>}
+      {actions.isError && <ErrorNotice error={actions.error} retry={() => { void actions.refetch() }} />}
+      {actions.data?.length === 0 && <p className="notice">Zatiaľ nebol zaznamenaný žiadny kontakt so zákazníkom.</p>}
+      {actions.data && actions.data.length > 0 && <div className="overflow-x-auto rounded-2xl border bg-background"><table>
+        <caption className="sr-only">Zaznamenané retenčné kontakty</caption>
+        <thead className="border-b"><tr><th scope="col">Dátum</th><th scope="col">Kanál</th><th scope="col">Poznámka</th><th scope="col">Zaznamenal</th><th scope="col">Riziko v čase kontaktu</th></tr></thead>
+        <tbody>{actions.data.map(action => <tr key={action.id}><td className="whitespace-nowrap">{formatDateTime(action.createdAt)}</td><td>{channelLabel(action.channel)}</td><td className="min-w-56 whitespace-pre-wrap break-words text-sm">{action.note}</td><td>{action.createdBy.fullName}</td><td>{formatProbability(action.churnProbability)}</td></tr>)}</tbody>
+      </table></div>}
+    </section>}
+  </>
 }

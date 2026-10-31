@@ -1,11 +1,11 @@
 import { createBrowserRouter } from 'react-router'
-import { HomePage, NotFoundPage, WorkspacePage } from './App'
+import { HomePage, NotFoundPage } from './App'
 import { AuthRoot, AppIndex, LoginPage, BookingPage } from './auth/AuthRoot'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { PublicLayout } from './components/PublicLayout'
 import { AppLayout } from './components/AppLayout'
 
-import { CalendarPage, AppointmentsPage, AppointmentDetailPage, StaffBookingPage, CustomersPage, CustomerDetailPage, OverviewPage, UsersPage, ServicesPage } from './features/WorkspacePages'
+import { CalendarPage, AppointmentsPage, AppointmentDetailPage, StaffBookingPage, CustomersPage, CustomerDetailPage, OverviewPage, UsersPage, ServicesPage, MlDashboardPage } from './features/WorkspacePages'
 
 export const router = createBrowserRouter([
   { element: <AuthRoot />, children: [
@@ -28,7 +28,7 @@ export const router = createBrowserRouter([
           { path: 'prehlad', element: <OverviewPage /> },
           { path: 'pouzivatelia', element: <UsersPage /> },
           { path: 'sluzby', element: <ServicesPage /> },
-          { path: 'ml', element: <WorkspacePage title="Riziko odchodu" /> },
+          { path: 'ml', element: <MlDashboardPage /> },
         ] },
         { path: '*', element: <NotFoundPage /> },
       ] },

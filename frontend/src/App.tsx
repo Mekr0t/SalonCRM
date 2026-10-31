@@ -48,10 +48,3 @@ export function NotFoundPage() {
     <Link to="/" className="action-link">Späť na úvod</Link>
   </main>
 }
-
-export function WorkspacePage({ title }: { title: string }) {
-  return <section className="max-w-3xl">
-    <p className="eyebrow">SalonCRM</p><h1 className="mt-3 text-3xl font-semibold">{title}</h1>
-    <div className="panel mt-8"><p>Táto časť aplikácie sa pripravuje.</p><p className="mt-2 text-muted-foreground">Zatiaľ môžete využiť verejnú rezerváciu termínu.</p><Link to="/rezervacia" className="action-link mt-5">Rezervovať termín</Link></div>
-  </section>
-}

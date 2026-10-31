@@ -233,8 +233,8 @@ Completed, NoShow, Cancelled = konečné stavy
 | GET | `/api/customers/{id}` | User (svoji), Admin | detail + história termínov a platieb |
 | PATCH | `/api/customers/{id}` | User (svoji), Admin | `fullName`, `phone`, `notes` |
 | POST | `/api/customers/lookup` | User (svoji), Admin | `{ ids: [] }` (max. 500) → `[{ id, fullName, email }]` — mená pre ML zoznamy; cudzie a neexistujúce id sa vynechajú |
-| GET | `/api/customers/{id}/retention-actions` | Admin | |
-| POST | `/api/customers/{id}/retention-actions` | Admin | `{ channel, note, churnProbability? }` |
+| GET | `/api/customers/{id}/retention-actions` | Admin | `[{ id, channel, note, churnProbability, createdAt, createdBy: { id, fullName } }]` od najnovšej; neexistujúci zákazník → 404 |
+| POST | `/api/customers/{id}/retention-actions` | Admin | `{ channel, note, churnProbability? }` → 201 s položkou ako v GET. `channel` ∈ `Phone, Email, Sms, InPerson`; `note` povinná, po orezaní 1–2000 znakov; `churnProbability` null alebo 0–1, ukladá sa na 3 desatinné miesta → inak 400 |
 | **Admin — používatelia a sessions** | | | |
 | GET | `/api/admin/users` | Admin | vrátane priradených služieb |
 | POST | `/api/admin/users` | Admin | `{ email, fullName, role, password, serviceIds }` |
