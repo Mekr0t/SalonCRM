@@ -94,9 +94,10 @@
   input[type="radio"], input[type="checkbox"] { @apply size-4 shrink-0 accent-primary; }
   input[aria-invalid="true"], textarea[aria-invalid="true"], select[aria-invalid="true"] { @apply border-destructive; }
   table { @apply w-full border-collapse text-left text-sm; }
-  th { @apply border-b bg-muted/40 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground; }
+  thead th { @apply border-b bg-muted/40 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground; }
+  tbody th { @apply border-b px-4 py-3 align-top font-medium; }
   td { @apply border-b px-4 py-3 align-top; }
-  tbody tr:last-child td { @apply border-b-0; }
+  tbody tr:last-child td, tbody tr:last-child th { @apply border-b-0; }
   caption { @apply pb-3 text-left font-medium; }
 }
 

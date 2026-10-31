@@ -36,15 +36,15 @@ export function CustomerDetailPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">História termínov a platieb</h2>
         {customer.data.appointments.length === 0 ? <p className="notice">Zákazník zatiaľ nemá žiadne termíny.</p> : <div className="overflow-x-auto rounded-2xl border bg-card">
-          <table className="w-full text-left text-sm">
+          <table>
             <caption className="sr-only">Termíny a platby zákazníka</caption>
-            <thead className="border-b bg-muted/50"><tr><th scope="col" className="p-4">Termín a služba</th><th scope="col" className="p-4">Pracovník</th><th scope="col" className="p-4">Stav</th><th scope="col" className="p-4">Cena</th><th scope="col" className="p-4">Platba</th></tr></thead>
-            <tbody>{customer.data.appointments.map(appointment => <tr key={appointment.id} className="border-b last:border-0 hover:bg-muted/30">
-              <th scope="row" className="p-4"><Link className="font-semibold text-primary hover:underline" to={`/app/terminy/${appointment.id}`}>{appointment.service.name}</Link><span className="mt-1 block whitespace-nowrap font-normal text-muted-foreground">{formatDateTime(appointment.startsAt)}</span></th>
-              <td className="p-4">{appointment.employee.fullName}</td>
-              <td className="p-4"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${appointment.status === 'Completed' ? 'bg-primary/10 text-primary' : appointment.status === 'NoShow' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{customerStatusNames[appointment.status]}</span></td>
-              <td className="whitespace-nowrap p-4">{formatCurrency(appointment.price)}</td>
-              <td className="p-4">{appointment.payment ? <><span className="whitespace-nowrap font-medium">{formatCurrency(appointment.payment.amount)}</span><span className="mt-1 block text-muted-foreground">{paymentMethodNames[appointment.payment.method]}</span><span className="mt-1 block whitespace-nowrap text-xs text-muted-foreground">{formatDateTime(appointment.payment.paidAt)}</span></> : <span className="text-muted-foreground">Bez platby</span>}</td>
+            <thead className="border-b"><tr><th scope="col">Termín a služba</th><th scope="col">Pracovník</th><th scope="col">Stav</th><th scope="col">Cena</th><th scope="col">Platba</th></tr></thead>
+            <tbody>{customer.data.appointments.map(appointment => <tr key={appointment.id} className="hover:bg-muted/30">
+              <th scope="row"><Link className="font-semibold text-primary hover:underline" to={`/app/terminy/${appointment.id}`}>{appointment.service.name}</Link><span className="mt-1 block whitespace-nowrap font-normal text-muted-foreground">{formatDateTime(appointment.startsAt)}</span></th>
+              <td>{appointment.employee.fullName}</td>
+              <td><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${appointment.status === 'Completed' ? 'bg-primary/10 text-primary' : appointment.status === 'NoShow' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{customerStatusNames[appointment.status]}</span></td>
+              <td className="whitespace-nowrap">{formatCurrency(appointment.price)}</td>
+              <td>{appointment.payment ? <><span className="whitespace-nowrap font-medium">{formatCurrency(appointment.payment.amount)}</span><span className="mt-1 block text-muted-foreground">{paymentMethodNames[appointment.payment.method]}</span><span className="mt-1 block whitespace-nowrap text-xs text-muted-foreground">{formatDateTime(appointment.payment.paidAt)}</span></> : <span className="text-muted-foreground">Bez platby</span>}</td>
             </tr>)}</tbody>
           </table>
         </div>}

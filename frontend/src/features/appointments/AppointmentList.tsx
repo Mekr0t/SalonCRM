@@ -13,18 +13,18 @@ export function AppointmentStatusBadge({ status }: { status: Appointment['status
 export function AppointmentList({ appointments, showEmployee = true }: { appointments: Appointment[]; showEmployee?: boolean }) {
   if (!appointments.length) return <p className="notice">Vo vybranom období a filtroch nie sú žiadne termíny.</p>
   return <div className="overflow-x-auto rounded-xl border bg-card">
-    <table className="w-full min-w-[650px] text-left text-sm">
+    <table className="min-w-[650px]">
       <caption className="sr-only">Zoznam termínov</caption>
-      <thead className="bg-muted/50 text-muted-foreground"><tr>
-        <th className="p-4 font-medium">Dátum a čas</th><th className="p-4 font-medium">Zákazník a služba</th>
-        {showEmployee && <th className="p-4 font-medium">Pracovník</th>}
-        <th className="p-4 font-medium">Stav</th><th className="p-4 font-medium">Cena</th>
+      <thead><tr>
+        <th className="font-medium">Dátum a čas</th><th className="font-medium">Zákazník a služba</th>
+        {showEmployee && <th className="font-medium">Pracovník</th>}
+        <th className="font-medium">Stav</th><th className="font-medium">Cena</th>
       </tr></thead>
-      <tbody>{appointments.map(item => <tr key={item.id} className="border-t">
-        <td className="p-4"><Link className="font-medium text-primary underline underline-offset-4" to={`/app/terminy/${item.id}`}>{formatDateTime(item.startsAt)}</Link></td>
-        <td className="p-4"><Link to={`/app/zakaznici/${item.customer.id}`} className="font-medium hover:underline">{item.customer.fullName}</Link><p className="mt-1 text-muted-foreground">{item.service.name}</p></td>
-        {showEmployee && <td className="p-4">{item.employee.fullName}</td>}
-        <td className="p-4"><AppointmentStatusBadge status={item.status} /></td><td className="p-4 whitespace-nowrap">{formatCurrency(item.price)}</td>
+      <tbody>{appointments.map(item => <tr key={item.id}>
+        <td><Link className="font-medium text-primary underline underline-offset-4" to={`/app/terminy/${item.id}`}>{formatDateTime(item.startsAt)}</Link></td>
+        <td><Link to={`/app/zakaznici/${item.customer.id}`} className="font-medium hover:underline">{item.customer.fullName}</Link><p className="mt-1 text-muted-foreground">{item.service.name}</p></td>
+        {showEmployee && <td>{item.employee.fullName}</td>}
+        <td><AppointmentStatusBadge status={item.status} /></td><td className="whitespace-nowrap">{formatCurrency(item.price)}</td>
       </tr>)}</tbody>
     </table>
   </div>

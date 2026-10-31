@@ -42,19 +42,19 @@ export function CustomersPage() {
         {(search || page > 1) && <Button variant="outline" onClick={() => setParams({})}>Zobraziť všetkých zákazníkov</Button>}
         {!search && page === 1 && <Link to="/app/terminy/novy" className="action-link">Vytvoriť telefonickú rezerváciu</Link>}
       </div> : <div className="overflow-x-auto rounded-2xl border bg-card">
-        <table className="w-full text-left text-sm">
+        <table>
           <caption className="sr-only">Zákazníci a prehľad návštev</caption>
-          <thead className="border-b bg-muted/50"><tr>
-            <th scope="col" className="p-4">Zákazník</th><th scope="col" className="p-4">Kontakt</th>
-            <th scope="col" className="p-4">Návštevy</th><th scope="col" className="p-4">Posledná návšteva</th>
-            <th scope="col" className="p-4">Nasledujúci termín</th>
+          <thead className="border-b"><tr>
+            <th scope="col">Zákazník</th><th scope="col">Kontakt</th>
+            <th scope="col">Návštevy</th><th scope="col">Posledná návšteva</th>
+            <th scope="col">Nasledujúci termín</th>
           </tr></thead>
-          <tbody>{customers.data.items.map(customer => <tr key={customer.id} className="border-b last:border-0 hover:bg-muted/30">
-            <th scope="row" className="p-4"><Link className="font-semibold text-primary underline-offset-4 hover:underline" to={`/app/zakaznici/${customer.id}`}>{customer.fullName}</Link></th>
-            <td className="p-4"><a className="break-all hover:underline" href={`mailto:${customer.email}`}>{customer.email}</a>{customer.phone && <a className="mt-1 block whitespace-nowrap text-muted-foreground hover:underline" href={`tel:${customer.phone}`}>{customer.phone}</a>}</td>
-            <td className="p-4">{customer.visitCount}</td>
-            <td className="whitespace-nowrap p-4">{customer.lastVisitAt ? formatDateTime(customer.lastVisitAt) : 'Bez návštevy'}</td>
-            <td className="whitespace-nowrap p-4">{customer.nextAppointmentAt ? formatDateTime(customer.nextAppointmentAt) : 'Bez termínu'}</td>
+          <tbody>{customers.data.items.map(customer => <tr key={customer.id} className="hover:bg-muted/30">
+            <th scope="row"><Link className="font-semibold text-primary underline-offset-4 hover:underline" to={`/app/zakaznici/${customer.id}`}>{customer.fullName}</Link></th>
+            <td><a className="break-all hover:underline" href={`mailto:${customer.email}`}>{customer.email}</a>{customer.phone && <a className="mt-1 block whitespace-nowrap text-muted-foreground hover:underline" href={`tel:${customer.phone}`}>{customer.phone}</a>}</td>
+            <td>{customer.visitCount}</td>
+            <td className="whitespace-nowrap">{customer.lastVisitAt ? formatDateTime(customer.lastVisitAt) : 'Bez návštevy'}</td>
+            <td className="whitespace-nowrap">{customer.nextAppointmentAt ? formatDateTime(customer.nextAppointmentAt) : 'Bez termínu'}</td>
           </tr>)}</tbody>
         </table>
       </div>}

@@ -4,13 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import FullCalendar from '@fullcalendar/react'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
-import interactionPlugin from '@fullcalendar/interaction'
 import skLocale from '@fullcalendar/core/locales/sk'
 import { useAuth } from '@/auth/auth'
 import { ErrorNotice } from '@/components/Feedback'
 import { salonDate } from '@/features/public/booking'
-import { appointmentsQuery, employeesQuery, statusNames } from './api'
+import { appointmentsQuery, statusNames } from './api'
 import { appointmentRange, salonLocalDateTime } from './time'
+import { adminUsersQuery } from '@/features/admin/api'
 
 const colors = { Scheduled: '#346451', Completed: '#437fbd', Cancelled: '#768075', NoShow: '#b16a20' }
 
@@ -22,7 +22,7 @@ export function CalendarPage() {
   const [dates, setDates] = useState<{ from: string; to: string } | null>(null)
   const range = useMemo(() => dates ? appointmentRange(dates.from, dates.to) : null, [dates])
   const appointments = useQuery(appointmentsQuery(range, '', admin ? employeeId : ''))
-  const employees = useQuery({ ...employeesQuery, enabled: admin })
+  const employees = useQuery({ ...adminUsersQuery, enabled: admin })
   return <section className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="eyebrow">Pracovný priestor</p><h1 className="mt-2 text-3xl font-semibold">Kalendár</h1><p className="mt-2 text-muted-foreground">Časy sú v časovom pásme Europe/Bratislava. Kliknutím otvoríte detail termínu.</p></div><Link className="action-link" to="/app/terminy/novy">Nová telefonická rezervácia</Link></div>
     {admin && <div className="max-w-sm"><label htmlFor="calendar-employee">Pracovník</label><select id="calendar-employee" value={employeeId} onChange={event => setEmployeeId(event.target.value)} disabled={employees.isPending || employees.isError}><option value="">Všetci pracovníci</option>{employees.data?.map(employee => <option value={employee.id} key={employee.id}>{employee.fullName}{employee.isActive ? '' : ' (neaktívny)'}</option>)}</select></div>}
@@ -33,7 +33,7 @@ export function CalendarPage() {
     <div className="panel calendar-panel min-w-0 overflow-x-auto">
       {/* UTC is a display coordinate. Every event is first converted to Bratislava wall time;
           this avoids browser-zone rendering and does not require a non-stack timezone plugin. */}
-      <FullCalendar plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]} locale={skLocale} timeZone="UTC"
+      <FullCalendar plugins={[timeGridPlugin, dayGridPlugin]} locale={skLocale} timeZone="UTC"
         initialDate={salonDate()} initialView="timeGridWeek" firstDay={1} allDaySlot={false} height="auto" nowIndicator
         now={`${salonLocalDateTime(new Date())}:00Z`} slotMinTime="07:00:00" slotMaxTime="20:00:00" slotDuration="00:15:00"
         headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay,dayGridMonth' }}
