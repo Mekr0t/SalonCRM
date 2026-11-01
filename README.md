@@ -38,7 +38,7 @@ cd frontend && npm ci && npm run dev               # → http://localhost:5173
 npm run lint && npm test && npm run build          # Node.js 24+
 ```
 
-## Frontend (Fázy 6 a 7)
+## Frontend (Fázy 6 – 8)
 
 - `/` — verejné služby a cenník.
 - `/rezervacia` — služba → pracovník alebo „ktokoľvek“ → dostupný čas → kontakt a GDPR → potvrdenie. Pri kolízii sa obnovia voľné časy a kontaktné údaje zostanú vyplnené.
@@ -48,7 +48,10 @@ npm run lint && npm test && npm run build          # Node.js 24+
 - `/app/zakaznici` — vyhľadávanie, stránkovanie, kontakt a poznámky, história termínov a platieb; pracovník vidí iba svojich zákazníkov a svoju časť histórie.
 - Admin: `/app/prehlad` (KPI a Recharts), `/app/pouzivatelia` (roly, služby, heslá, aktivácia a sessions), `/app/sluzby` (cenník). Deaktivácia zneplatní sessions; ďalší request s pôvodnou session vráti 401.
 
-ML dashboard a odznaky rizika patria do Fázy 8. Podrobný postup kontroly pracovných obrazoviek: [docs/FRONTEND-QA.md](docs/FRONTEND-QA.md).
+- Admin: `/app/ml` — riziko odchodu: rozdelenie rizika, rizikoví zákazníci (mená z main cez `POST /api/customers/lookup`), model vs. baseline, dôležitosť príznakov, história behov, „Prepočítať predikcie“ a „Zaznamenať kontakt“ (retenčná akcia do main).
+- Odznaky rizika v kalendári a zozname zákazníkov (`POST /ml/predictions/lookup`), v detaile zákazníka riziko, zdôvodnenie a graf vývoja; admin vidí aj retenčné akcie. Frontend volá `/api/*` aj `:8000/ml/*` priamo; pri nedostupnom ML sa odznaky len nezobrazia.
+
+Podrobný postup kontroly pracovných obrazoviek: [docs/FRONTEND-QA.md](docs/FRONTEND-QA.md).
 
 Pri štarte sa session obnovuje cez `/api/auth/me`. Anonymný návštevník môže rezervovať bez prihlásenia. Pri expirácii session alebo odpovedi 401 z main/ML API sa UI odhlási a presmeruje na prihlásenie.
 

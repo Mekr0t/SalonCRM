@@ -8,6 +8,9 @@ import { ErrorNotice } from '@/components/Feedback'
 import { formatDateTime } from '@/lib/format'
 import { customersQuery } from './api'
 import { customerPage } from './customer'
+import { riskLookupQuery } from '@/features/ml/api'
+import { RiskBadge } from '@/features/ml/RiskBadge'
+import { formatProbability } from '@/features/ml/risk'
 
 export function CustomersPage() {
   const { user } = useAuth()
@@ -15,6 +18,7 @@ export function CustomersPage() {
   const search = (params.get('search') ?? '').trim().slice(0, 100)
   const page = customerPage(params.get('page'))
   const customers = useQuery(customersQuery(search, page))
+  const risks = useQuery(riskLookupQuery(customers.data?.items.map(customer => customer.id) ?? []))
   function changePage(next: number) {
     const nextParams = new URLSearchParams(params)
     nextParams.set('page', String(next))
@@ -47,7 +51,7 @@ export function CustomersPage() {
           <thead className="border-b"><tr>
             <th scope="col">Zákazník</th><th scope="col">Kontakt</th>
             <th scope="col">Návštevy</th><th scope="col">Posledná návšteva</th>
-            <th scope="col">Nasledujúci termín</th>
+            <th scope="col">Nasledujúci termín</th><th scope="col">Riziko</th>
           </tr></thead>
           <tbody>{customers.data.items.map(customer => <tr key={customer.id} className="hover:bg-muted/30">
             <th scope="row"><Link className="font-semibold text-primary underline-offset-4 hover:underline" to={`/app/zakaznici/${customer.id}`}>{customer.fullName}</Link></th>
@@ -55,9 +59,11 @@ export function CustomersPage() {
             <td>{customer.visitCount}</td>
             <td className="whitespace-nowrap">{customer.lastVisitAt ? formatDateTime(customer.lastVisitAt) : 'Bez návštevy'}</td>
             <td className="whitespace-nowrap">{customer.nextAppointmentAt ? formatDateTime(customer.nextAppointmentAt) : 'Bez termínu'}</td>
+            <td>{risks.data?.get(customer.id) ? <><RiskBadge level={risks.data.get(customer.id)!.riskLevel} /><span className="mt-1 block text-xs text-muted-foreground">{formatProbability(risks.data.get(customer.id)!.churnProbability)}</span></> : <span className="text-muted-foreground">—</span>}</td>
           </tr>)}</tbody>
         </table>
       </div>}
+      {risks.isError && <p className="text-sm text-muted-foreground" role="status">Riziko odchodu sa momentálne nepodarilo načítať.</p>}
       {customers.data.totalCount > 0 && <nav aria-label="Stránkovanie zákazníkov" className="flex flex-wrap items-center gap-3">
         <Button variant="outline" disabled={page === 1 || customers.isFetching} onClick={() => changePage(page - 1)}>Predchádzajúca</Button>
         <span className="text-sm">Strana {page} z {Math.max(1, Math.ceil(customers.data.totalCount / customers.data.pageSize))}</span>

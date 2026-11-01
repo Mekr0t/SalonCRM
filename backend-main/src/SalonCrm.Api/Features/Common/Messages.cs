@@ -14,6 +14,9 @@ public static class Messages
     public const string OtherEmployee = "Nemáte oprávnenie pracovať s termínmi iného pracovníka.";
     public const string InvalidAmount = "Suma musí byť od 0 do 10000 € a najviac na 2 desatinné miesta.";
     public const string CustomerNameEmpty = "Meno zákazníka nesmie byť prázdne.";
+    public const string RetentionChannelRequired = "Kanál kontaktu je povinný a musí byť Phone, Email, Sms alebo InPerson.";
+    public const string RetentionNoteInvalid = "Poznámka je povinná a môže mať najviac 2000 znakov.";
+    public const string RetentionProbabilityInvalid = "Pravdepodobnosť odchodu musí byť číslo od 0 do 1.";
 }
 
 // ProblemDetails shortcuts shared by controllers.

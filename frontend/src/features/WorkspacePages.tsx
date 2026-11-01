@@ -9,3 +9,4 @@ export const CustomerDetailPage = lazy(() => import('./customers/CustomerDetailP
 export const OverviewPage = lazy(() => import('./admin/OverviewPage').then(module => ({ default: module.OverviewPage })))
 export const UsersPage = lazy(() => import('./admin/UsersPage').then(module => ({ default: module.UsersPage })))
 export const ServicesPage = lazy(() => import('./admin/ServicesPage').then(module => ({ default: module.ServicesPage })))
+export const MlDashboardPage = lazy(() => import('./ml/MlDashboardPage').then(module => ({ default: module.MlDashboardPage })))
