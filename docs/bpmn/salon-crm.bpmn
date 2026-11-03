@@ -1,0 +1,1527 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_SalonCrm" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:error id="Error_SlotCollision" name="Kolízia termínu" errorCode="23P01" />
+  <bpmn:error id="Error_NoAccess" name="Bez oprávnenia" errorCode="404" />
+  <bpmn:error id="Error_InvalidTransition" name="Neplatný prechod stavu" errorCode="409" />
+  <bpmn:error id="Error_NoHistory" name="Nedostatok histórie" errorCode="422" />
+  <bpmn:message id="Msg_C_RetentionStart" name="Kontakt zo salónu" />
+  <bpmn:message id="Msg_S_PhoneStart" name="Telefonát zákazníka" />
+  <bpmn:message id="Msg_S_MsgReschedule" name="Žiadosť o zmenu termínu" />
+  <bpmn:message id="Msg_S_MsgCancel" name="Žiadosť o zrušenie termínu" />
+  <bpmn:message id="Msg_S_MsgArrived" name="Zákazník prišiel" />
+  <bpmn:message id="Msg_R_OnlineStart" name="Prijatá online rezervácia" />
+  <bpmn:message id="Msg_R_IntrospectStart" name="Požiadavka na overenie session" />
+  <bpmn:message id="Msg_R_ExportStart" name="Požiadavka na export dát" />
+  <bpmn:message id="Msg_M_Start" name="Požiadavka na prepočet" />
+  <bpmn:collaboration id="Collaboration_SalonCrm">
+    <bpmn:participant id="Participant_Customer" name="Zákazník" processRef="Process_Customer" />
+    <bpmn:participant id="Participant_Salon" name="Kozmetický salón" processRef="Process_Salon" />
+    <bpmn:participant id="Participant_ML" name="ML služba (predikcia odchodu)" processRef="Process_ML" />
+    <bpmn:messageFlow id="Message_C_Call_S_PhoneStart" name="Telefonát" sourceRef="C_Call" targetRef="S_PhoneStart" />
+    <bpmn:messageFlow id="Message_C_Submit_R_OnlineStart" name="Údaje rezervácie" sourceRef="C_Submit" targetRef="R_OnlineStart" />
+    <bpmn:messageFlow id="Message_R_ShowConfirm_C_ReceiveResult" name="Potvrdenie rezervácie" sourceRef="R_ShowConfirm" targetRef="C_ReceiveResult" />
+    <bpmn:messageFlow id="Message_R_ShowReject_C_ReceiveResult" name="Dôvod zamietnutia" sourceRef="R_ShowReject" targetRef="C_ReceiveResult" />
+    <bpmn:messageFlow id="Message_S_TellBooked_C_ReceivePhoneConfirm" name="Dohodnutý termín" sourceRef="S_TellBooked" targetRef="C_ReceivePhoneConfirm" />
+    <bpmn:messageFlow id="Message_C_RequestReschedule_S_MsgReschedule" name="Žiadosť o zmenu" sourceRef="C_RequestReschedule" targetRef="S_MsgReschedule" />
+    <bpmn:messageFlow id="Message_S_TellNewTime_C_ReceiveNewTime" name="Nový termín" sourceRef="S_TellNewTime" targetRef="C_ReceiveNewTime" />
+    <bpmn:messageFlow id="Message_C_RequestCancel_S_MsgCancel" name="Žiadosť o zrušenie" sourceRef="C_RequestCancel" targetRef="S_MsgCancel" />
+    <bpmn:messageFlow id="Message_S_ConfirmCancel_C_ReceiveCancelAnswer" name="Potvrdenie zrušenia" sourceRef="S_ConfirmCancel" targetRef="C_ReceiveCancelAnswer" />
+    <bpmn:messageFlow id="Message_S_ExplainCancel_C_ReceiveCancelAnswer" name="Termín nemožno zrušiť" sourceRef="S_ExplainCancel" targetRef="C_ReceiveCancelAnswer" />
+    <bpmn:messageFlow id="Message_C_Arrive_S_MsgArrived" name="Príchod" sourceRef="C_Arrive" targetRef="S_MsgArrived" />
+    <bpmn:messageFlow id="Message_C_Pay_S_ReceivePayment" name="Platba" sourceRef="C_Pay" targetRef="S_ReceivePayment" />
+    <bpmn:messageFlow id="Message_A_RunPipeline_M_Start" name="POST /ml/pipeline/run" sourceRef="A_RunPipeline" targetRef="M_Start" />
+    <bpmn:messageFlow id="Message_M_AskIntrospect_R_IntrospectStart" name="Introspect session" sourceRef="M_AskIntrospect" targetRef="R_IntrospectStart" />
+    <bpmn:messageFlow id="Message_R_IntrospectReply_M_ReceiveIntrospect" name="Rola a platnosť session" sourceRef="R_IntrospectReply" targetRef="M_ReceiveIntrospect" />
+    <bpmn:messageFlow id="Message_M_AskExport_R_ExportStart" name="GET /api/internal/ml/export" sourceRef="M_AskExport" targetRef="R_ExportStart" />
+    <bpmn:messageFlow id="Message_R_SendExport_M_ReceiveExport" name="Pseudonymizované termíny" sourceRef="R_SendExport" targetRef="M_ReceiveExport" />
+    <bpmn:messageFlow id="Message_M_SendSummary_A_ReceiveRun" name="Súhrn behu a metriky" sourceRef="M_SendSummary" targetRef="A_ReceiveRun" />
+    <bpmn:messageFlow id="Message_M_SendError_A_ReceiveRun" name="ProblemDetails" sourceRef="M_SendError" targetRef="A_ReceiveRun" />
+    <bpmn:messageFlow id="Message_A_R_Contact_C_RetentionStart" name="Telefonát / e-mail / SMS" sourceRef="A_R_Contact" targetRef="C_RetentionStart" />
+    <bpmn:messageFlow id="Message_C_AgreeTime_A_R_Book" name="Dohodnutý termín" sourceRef="C_AgreeTime" targetRef="A_R_Book" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Customer" name="Zákazník" isExecutable="false">
+    <bpmn:documentation>Zákazník nemá účet. Rezervuje online cez verejný formulár alebo telefonicky.</bpmn:documentation>
+    <bpmn:startEvent id="C_Start" name="Potreba ošetrenia">
+      <bpmn:outgoing>Flow_C_Start_C_GwChannel</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="C_GwChannel" name="Ako si zákazník rezervuje?">
+      <bpmn:incoming>Flow_C_Start_C_GwChannel</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_GwChannel_C_SelectService</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_GwChannel_C_Call</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="C_SelectService" name="Výber služby">
+      <bpmn:incoming>Flow_C_GwChannel_C_SelectService</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_SelectService_C_SelectEmployee</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="C_SelectEmployee" name="Výber pracovníka alebo „ktokoľvek“">
+      <bpmn:incoming>Flow_C_SelectService_C_SelectEmployee</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_SelectEmployee_C_GwRetry</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="C_GwRetry">
+      <bpmn:incoming>Flow_C_SelectEmployee_C_GwRetry</bpmn:incoming>
+      <bpmn:incoming>Flow_C_GwCreated_C_GwRetry</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_GwRetry_C_SelectSlot</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="C_SelectSlot" name="Výber dátumu a voľného času">
+      <bpmn:incoming>Flow_C_GwRetry_C_SelectSlot</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_SelectSlot_C_FillContact</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="C_FillContact" name="Vyplnenie kontaktných údajov">
+      <bpmn:incoming>Flow_C_SelectSlot_C_FillContact</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_FillContact_C_Consent</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="C_Consent" name="Udelenie súhlasu so spracovaním osobných údajov">
+      <bpmn:incoming>Flow_C_FillContact_C_Consent</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Consent_C_Submit</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="C_Submit" name="Odoslanie online rezervácie">
+      <bpmn:incoming>Flow_C_Consent_C_Submit</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Submit_C_ReceiveResult</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="C_ReceiveResult" name="Prijatie výsledku rezervácie">
+      <bpmn:incoming>Flow_C_Submit_C_ReceiveResult</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_ReceiveResult_C_GwCreated</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="C_GwCreated" name="Je rezervácia vytvorená?">
+      <bpmn:incoming>Flow_C_ReceiveResult_C_GwCreated</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_GwCreated_C_GwBooked</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_GwCreated_C_GwRetry</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="C_Call" name="Zavolanie do salónu">
+      <bpmn:incoming>Flow_C_GwChannel_C_Call</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Call_C_ReceivePhoneConfirm</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="C_ReceivePhoneConfirm" name="Prijatie potvrdenia termínu">
+      <bpmn:incoming>Flow_C_Call_C_ReceivePhoneConfirm</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_ReceivePhoneConfirm_C_GwBooked</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="C_GwBooked">
+      <bpmn:incoming>Flow_C_GwCreated_C_GwBooked</bpmn:incoming>
+      <bpmn:incoming>Flow_C_ReceivePhoneConfirm_C_GwBooked</bpmn:incoming>
+      <bpmn:incoming>Flow_C_ReceiveNewTime_C_GwBooked</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_GwBooked_C_GwAttend</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="C_GwAttend" name="Môže zákazník prísť v termíne?">
+      <bpmn:incoming>Flow_C_GwBooked_C_GwAttend</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_GwAttend_C_Arrive</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_GwAttend_C_RequestReschedule</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_GwAttend_C_RequestCancel</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="C_RequestReschedule" name="Žiadosť o zmenu termínu">
+      <bpmn:incoming>Flow_C_GwAttend_C_RequestReschedule</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_RequestReschedule_C_ReceiveNewTime</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="C_ReceiveNewTime" name="Prijatie nového termínu">
+      <bpmn:incoming>Flow_C_RequestReschedule_C_ReceiveNewTime</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_ReceiveNewTime_C_GwBooked</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:sendTask id="C_RequestCancel" name="Žiadosť o zrušenie termínu">
+      <bpmn:incoming>Flow_C_GwAttend_C_RequestCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_RequestCancel_C_ReceiveCancelAnswer</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="C_ReceiveCancelAnswer" name="Prijatie odpovede salónu">
+      <bpmn:incoming>Flow_C_RequestCancel_C_ReceiveCancelAnswer</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_ReceiveCancelAnswer_C_EndCancel</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:endEvent id="C_EndCancel" name="Žiadosť o zrušenie vybavená">
+      <bpmn:incoming>Flow_C_ReceiveCancelAnswer_C_EndCancel</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sendTask id="C_Arrive" name="Príchod do salónu">
+      <bpmn:incoming>Flow_C_GwAttend_C_Arrive</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Arrive_C_Undergo</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:manualTask id="C_Undergo" name="Absolvovanie ošetrenia">
+      <bpmn:incoming>Flow_C_Arrive_C_Undergo</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Undergo_C_Pay</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:sendTask id="C_Pay" name="Zaplatenie hotovosťou alebo kartou">
+      <bpmn:incoming>Flow_C_Undergo_C_Pay</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Pay_C_EndVisit</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="C_EndVisit" name="Ošetrenie absolvované">
+      <bpmn:incoming>Flow_C_Pay_C_EndVisit</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="C_RetentionStart" name="Kontakt zo salónu">
+      <bpmn:outgoing>Flow_C_RetentionStart_C_Talk</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_C_RetentionStart" messageRef="Msg_C_RetentionStart" />
+    </bpmn:startEvent>
+    <bpmn:manualTask id="C_Talk" name="Rozhovor o ďalšej návšteve">
+      <bpmn:incoming>Flow_C_RetentionStart_C_Talk</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Talk_C_GwInterest</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:exclusiveGateway id="C_GwInterest" name="Chce si dohodnúť termín?">
+      <bpmn:incoming>Flow_C_Talk_C_GwInterest</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_GwInterest_C_EndNoInterest</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_GwInterest_C_AgreeTime</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="C_AgreeTime" name="Dohodnutie nového termínu">
+      <bpmn:incoming>Flow_C_GwInterest_C_AgreeTime</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_AgreeTime_C_EndNewTime</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="C_EndNewTime" name="Nový termín dohodnutý">
+      <bpmn:incoming>Flow_C_AgreeTime_C_EndNewTime</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="C_EndNoInterest" name="Bez záujmu">
+      <bpmn:incoming>Flow_C_GwInterest_C_EndNoInterest</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_C_Start_C_GwChannel" sourceRef="C_Start" targetRef="C_GwChannel" />
+    <bpmn:sequenceFlow id="Flow_C_GwChannel_C_SelectService" name="Online" sourceRef="C_GwChannel" targetRef="C_SelectService" />
+    <bpmn:sequenceFlow id="Flow_C_GwChannel_C_Call" name="Telefonicky" sourceRef="C_GwChannel" targetRef="C_Call" />
+    <bpmn:sequenceFlow id="Flow_C_SelectService_C_SelectEmployee" sourceRef="C_SelectService" targetRef="C_SelectEmployee" />
+    <bpmn:sequenceFlow id="Flow_C_SelectEmployee_C_GwRetry" sourceRef="C_SelectEmployee" targetRef="C_GwRetry" />
+    <bpmn:sequenceFlow id="Flow_C_GwRetry_C_SelectSlot" sourceRef="C_GwRetry" targetRef="C_SelectSlot" />
+    <bpmn:sequenceFlow id="Flow_C_SelectSlot_C_FillContact" sourceRef="C_SelectSlot" targetRef="C_FillContact" />
+    <bpmn:sequenceFlow id="Flow_C_FillContact_C_Consent" sourceRef="C_FillContact" targetRef="C_Consent" />
+    <bpmn:sequenceFlow id="Flow_C_Consent_C_Submit" sourceRef="C_Consent" targetRef="C_Submit" />
+    <bpmn:sequenceFlow id="Flow_C_Submit_C_ReceiveResult" sourceRef="C_Submit" targetRef="C_ReceiveResult" />
+    <bpmn:sequenceFlow id="Flow_C_ReceiveResult_C_GwCreated" sourceRef="C_ReceiveResult" targetRef="C_GwCreated" />
+    <bpmn:sequenceFlow id="Flow_C_GwCreated_C_GwBooked" name="Áno" sourceRef="C_GwCreated" targetRef="C_GwBooked" />
+    <bpmn:sequenceFlow id="Flow_C_GwCreated_C_GwRetry" name="Nie – vybrať iný čas" sourceRef="C_GwCreated" targetRef="C_GwRetry" />
+    <bpmn:sequenceFlow id="Flow_C_Call_C_ReceivePhoneConfirm" sourceRef="C_Call" targetRef="C_ReceivePhoneConfirm" />
+    <bpmn:sequenceFlow id="Flow_C_ReceivePhoneConfirm_C_GwBooked" sourceRef="C_ReceivePhoneConfirm" targetRef="C_GwBooked" />
+    <bpmn:sequenceFlow id="Flow_C_GwBooked_C_GwAttend" sourceRef="C_GwBooked" targetRef="C_GwAttend" />
+    <bpmn:sequenceFlow id="Flow_C_GwAttend_C_Arrive" name="Áno" sourceRef="C_GwAttend" targetRef="C_Arrive" />
+    <bpmn:sequenceFlow id="Flow_C_GwAttend_C_RequestReschedule" name="Nie, chce iný termín" sourceRef="C_GwAttend" targetRef="C_RequestReschedule" />
+    <bpmn:sequenceFlow id="Flow_C_GwAttend_C_RequestCancel" name="Nie, chce zrušiť" sourceRef="C_GwAttend" targetRef="C_RequestCancel" />
+    <bpmn:sequenceFlow id="Flow_C_RequestReschedule_C_ReceiveNewTime" sourceRef="C_RequestReschedule" targetRef="C_ReceiveNewTime" />
+    <bpmn:sequenceFlow id="Flow_C_ReceiveNewTime_C_GwBooked" sourceRef="C_ReceiveNewTime" targetRef="C_GwBooked" />
+    <bpmn:sequenceFlow id="Flow_C_RequestCancel_C_ReceiveCancelAnswer" sourceRef="C_RequestCancel" targetRef="C_ReceiveCancelAnswer" />
+    <bpmn:sequenceFlow id="Flow_C_ReceiveCancelAnswer_C_EndCancel" sourceRef="C_ReceiveCancelAnswer" targetRef="C_EndCancel" />
+    <bpmn:sequenceFlow id="Flow_C_Arrive_C_Undergo" sourceRef="C_Arrive" targetRef="C_Undergo" />
+    <bpmn:sequenceFlow id="Flow_C_Undergo_C_Pay" sourceRef="C_Undergo" targetRef="C_Pay" />
+    <bpmn:sequenceFlow id="Flow_C_Pay_C_EndVisit" sourceRef="C_Pay" targetRef="C_EndVisit" />
+    <bpmn:sequenceFlow id="Flow_C_RetentionStart_C_Talk" sourceRef="C_RetentionStart" targetRef="C_Talk" />
+    <bpmn:sequenceFlow id="Flow_C_Talk_C_GwInterest" sourceRef="C_Talk" targetRef="C_GwInterest" />
+    <bpmn:sequenceFlow id="Flow_C_GwInterest_C_EndNoInterest" name="Nie" sourceRef="C_GwInterest" targetRef="C_EndNoInterest" />
+    <bpmn:sequenceFlow id="Flow_C_GwInterest_C_AgreeTime" name="Áno" sourceRef="C_GwInterest" targetRef="C_AgreeTime" />
+    <bpmn:sequenceFlow id="Flow_C_AgreeTime_C_EndNewTime" sourceRef="C_AgreeTime" targetRef="C_EndNewTime" />
+  </bpmn:process>
+  <bpmn:process id="Process_Salon" name="Kozmetický salón" isExecutable="false">
+    <bpmn:documentation>Životný cyklus termínu: rezervácia (online/telefonicky) → čakanie (preplánovanie, zrušenie) → návšteva alebo nepríchod → platba a uzavretie. Raz týždenne admin spúšťa analýzu rizika odchodu a robí retenčné kontakty. Systém neposiela e-maily (mimo rozsahu, SPEC §1), komunikácia so zákazníkom je cez web alebo telefonicky.</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_Process_Salon">
+      <bpmn:lane id="Lane_Admin" name="Admin">
+        <bpmn:flowNodeRef>A_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_OpenDashboard</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_RunPipeline</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_ReceiveRun</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_GwRunOk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_ShowRunError</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_EndRunError</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_Compare</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_SelectRisky</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_GwAnyRisky</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_EndNoRisky</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_Sub_Retention</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_EndRetention</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Staff" name="Pracovník (User)">
+        <bpmn:flowNodeRef>S_PhoneStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_AskNeeds</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_GwRetry</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_FindSlot</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_EnterCustomer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_TellBooked</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_GwBooked</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_GwWait</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_TimerStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_MsgReschedule</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_GwRescheduleRetry</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_PickNewTime</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_TellNewTime</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_MsgCancel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_OpenCancel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_ConfirmCancel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_EndCancelled</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_ExplainCancel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_EndNotCancelled</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_GwArrival</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_MsgArrived</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_TimerNoShow</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_MarkNoShow</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_OpenDetail</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Sub_Treatment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_WriteNote</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_GwAmount</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_EditAmount</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_MergeAmount</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_ReceivePayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Complete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_ShowConflict</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_EndConflict</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_CRM" name="CRM systém (hlavný backend)">
+        <bpmn:flowNodeRef>R_OnlineStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_Validate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwValid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwSourceMerge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwEmployee</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_AssignEmployee</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwEmployeeMerge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_CheckSlot</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwSlotFree</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwRejectTaken</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_RejectTaken</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwSourceReject</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_FindCustomer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_SaveBooking</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_BCollision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwBookedSource</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_ShowConfirm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwRejectMerge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_ShowReject</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_EndRejected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_Reschedule</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwRescheduleOk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_Sub_Cancel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_BCancelRejected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_SaveNoShow</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_EndNoShow</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_VerifyComplete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_GwCompleteOk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_SaveCompleted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_EndCompleted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_IntrospectStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_Introspect</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_IntrospectReply</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_IntrospectEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_ExportStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_CheckApiKey</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_BuildExport</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_SendExport</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>R_ExportEnd</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="A_Start" name="Každý pondelok o 8:00">
+      <bpmn:outgoing>Flow_A_Start_A_OpenDashboard</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="Def_A_Start">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/2026-01-05T08:00:00+01:00/P7D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+    <bpmn:userTask id="A_OpenDashboard" name="Otvorenie ML dashboardu">
+      <bpmn:incoming>Flow_A_Start_A_OpenDashboard</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_OpenDashboard_A_RunPipeline</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="A_RunPipeline" name="Spustenie prepočtu predikcií">
+      <bpmn:incoming>Flow_A_OpenDashboard_A_RunPipeline</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_RunPipeline_A_ReceiveRun</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="A_ReceiveRun" name="Prijatie výsledku prepočtu">
+      <bpmn:incoming>Flow_A_RunPipeline_A_ReceiveRun</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_ReceiveRun_A_GwRunOk</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="A_GwRunOk" name="Prepočet úspešný?">
+      <bpmn:incoming>Flow_A_ReceiveRun_A_GwRunOk</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_GwRunOk_A_Compare</bpmn:outgoing>
+      <bpmn:outgoing>Flow_A_GwRunOk_A_ShowRunError</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="A_ShowRunError" name="Zobrazenie chyby prepočtu">
+      <bpmn:incoming>Flow_A_GwRunOk_A_ShowRunError</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_ShowRunError_A_EndRunError</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="A_EndRunError" name="Analýza neprebehla">
+      <bpmn:incoming>Flow_A_ShowRunError_A_EndRunError</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="A_Compare" name="Porovnanie modelu s baseline">
+      <bpmn:incoming>Flow_A_GwRunOk_A_Compare</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_Compare_A_SelectRisky</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="A_SelectRisky" name="Výber zákazníkov s vysokým rizikom">
+      <bpmn:incoming>Flow_A_Compare_A_SelectRisky</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_SelectRisky_A_GwAnyRisky</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="A_GwAnyRisky" name="Sú zákazníci s vysokým rizikom?">
+      <bpmn:incoming>Flow_A_SelectRisky_A_GwAnyRisky</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_GwAnyRisky_A_Sub_Retention</bpmn:outgoing>
+      <bpmn:outgoing>Flow_A_GwAnyRisky_A_EndNoRisky</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="A_EndNoRisky" name="Bez retenčných akcií">
+      <bpmn:incoming>Flow_A_GwAnyRisky_A_EndNoRisky</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:subProcess id="A_Sub_Retention" name="Retenčný kontakt so zákazníkom">
+      <bpmn:incoming>Flow_A_GwAnyRisky_A_Sub_Retention</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_Sub_Retention_A_EndRetention</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true" />
+      <bpmn:startEvent id="A_R_Start" name="Rizikový zákazník">
+        <bpmn:outgoing>Flow_A_R_Start_A_R_Load</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="A_R_Load" name="Načítanie karty zákazníka a zdôvodnenia rizika">
+        <bpmn:incoming>Flow_A_R_Start_A_R_Load</bpmn:incoming>
+        <bpmn:outgoing>Flow_A_R_Load_A_R_Contact</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:sendTask id="A_R_Contact" name="Kontaktovanie zákazníka">
+        <bpmn:incoming>Flow_A_R_Load_A_R_Contact</bpmn:incoming>
+        <bpmn:outgoing>Flow_A_R_Contact_A_R_Gw</bpmn:outgoing>
+      </bpmn:sendTask>
+      <bpmn:exclusiveGateway id="A_R_Gw" name="Má zákazník záujem o termín?">
+        <bpmn:incoming>Flow_A_R_Contact_A_R_Gw</bpmn:incoming>
+        <bpmn:outgoing>Flow_A_R_Gw_A_R_Merge</bpmn:outgoing>
+        <bpmn:outgoing>Flow_A_R_Gw_A_R_Book</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:userTask id="A_R_Book" name="Vytvorenie telefonickej rezervácie">
+        <bpmn:incoming>Flow_A_R_Gw_A_R_Book</bpmn:incoming>
+        <bpmn:outgoing>Flow_A_R_Book_A_R_Merge</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:exclusiveGateway id="A_R_Merge">
+        <bpmn:incoming>Flow_A_R_Gw_A_R_Merge</bpmn:incoming>
+        <bpmn:incoming>Flow_A_R_Book_A_R_Merge</bpmn:incoming>
+        <bpmn:outgoing>Flow_A_R_Merge_A_R_Record</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:userTask id="A_R_Record" name="Zaznamenanie retenčnej akcie">
+        <bpmn:incoming>Flow_A_R_Merge_A_R_Record</bpmn:incoming>
+        <bpmn:outgoing>Flow_A_R_Record_A_R_End</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="A_R_End" name="Kontakt zaznamenaný">
+        <bpmn:incoming>Flow_A_R_Record_A_R_End</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_A_R_Start_A_R_Load" sourceRef="A_R_Start" targetRef="A_R_Load" />
+      <bpmn:sequenceFlow id="Flow_A_R_Load_A_R_Contact" sourceRef="A_R_Load" targetRef="A_R_Contact" />
+      <bpmn:sequenceFlow id="Flow_A_R_Contact_A_R_Gw" sourceRef="A_R_Contact" targetRef="A_R_Gw" />
+      <bpmn:sequenceFlow id="Flow_A_R_Gw_A_R_Merge" name="Nie" sourceRef="A_R_Gw" targetRef="A_R_Merge" />
+      <bpmn:sequenceFlow id="Flow_A_R_Gw_A_R_Book" name="Áno" sourceRef="A_R_Gw" targetRef="A_R_Book" />
+      <bpmn:sequenceFlow id="Flow_A_R_Book_A_R_Merge" sourceRef="A_R_Book" targetRef="A_R_Merge" />
+      <bpmn:sequenceFlow id="Flow_A_R_Merge_A_R_Record" sourceRef="A_R_Merge" targetRef="A_R_Record" />
+      <bpmn:sequenceFlow id="Flow_A_R_Record_A_R_End" sourceRef="A_R_Record" targetRef="A_R_End" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="A_EndRetention" name="Retenčné akcie zaznamenané">
+      <bpmn:incoming>Flow_A_Sub_Retention_A_EndRetention</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="S_PhoneStart" name="Telefonát zákazníka">
+      <bpmn:outgoing>Flow_S_PhoneStart_S_AskNeeds</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_S_PhoneStart" messageRef="Msg_S_PhoneStart" />
+    </bpmn:startEvent>
+    <bpmn:userTask id="S_AskNeeds" name="Zistenie želanej služby a pracovníka">
+      <bpmn:incoming>Flow_S_PhoneStart_S_AskNeeds</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_AskNeeds_S_GwRetry</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="S_GwRetry">
+      <bpmn:incoming>Flow_S_AskNeeds_S_GwRetry</bpmn:incoming>
+      <bpmn:incoming>Flow_R_GwSourceReject_S_GwRetry</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_GwRetry_S_FindSlot</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="S_FindSlot" name="Vyhľadanie voľného času v kalendári">
+      <bpmn:incoming>Flow_S_GwRetry_S_FindSlot</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_FindSlot_S_EnterCustomer</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="S_EnterCustomer" name="Zadanie údajov zákazníka a potvrdenie súhlasu">
+      <bpmn:incoming>Flow_S_FindSlot_S_EnterCustomer</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_EnterCustomer_R_GwSourceMerge</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="S_TellBooked" name="Oznámenie termínu zákazníkovi">
+      <bpmn:incoming>Flow_R_GwBookedSource_S_TellBooked</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_TellBooked_S_GwBooked</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:exclusiveGateway id="S_GwBooked">
+      <bpmn:incoming>Flow_S_TellBooked_S_GwBooked</bpmn:incoming>
+      <bpmn:incoming>Flow_S_TellNewTime_S_GwBooked</bpmn:incoming>
+      <bpmn:incoming>Flow_R_ShowConfirm_S_GwBooked</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_GwBooked_S_GwWait</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:eventBasedGateway id="S_GwWait" name="Čo nastane skôr?">
+      <bpmn:incoming>Flow_S_GwBooked_S_GwWait</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_GwWait_S_TimerStart</bpmn:outgoing>
+      <bpmn:outgoing>Flow_S_GwWait_S_MsgReschedule</bpmn:outgoing>
+      <bpmn:outgoing>Flow_S_GwWait_S_MsgCancel</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="S_TimerStart" name="Nastal čas termínu">
+      <bpmn:incoming>Flow_S_GwWait_S_TimerStart</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_TimerStart_S_GwArrival</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="Def_S_TimerStart">
+        <bpmn:timeDate xsi:type="bpmn:tFormalExpression">${appointment.startsAt}</bpmn:timeDate>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="S_MsgReschedule" name="Žiadosť o zmenu termínu">
+      <bpmn:incoming>Flow_S_GwWait_S_MsgReschedule</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_MsgReschedule_S_GwRescheduleRetry</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_S_MsgReschedule" messageRef="Msg_S_MsgReschedule" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="S_GwRescheduleRetry">
+      <bpmn:incoming>Flow_S_MsgReschedule_S_GwRescheduleRetry</bpmn:incoming>
+      <bpmn:incoming>Flow_R_GwRescheduleOk_S_GwRescheduleRetry</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_GwRescheduleRetry_S_PickNewTime</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="S_PickNewTime" name="Výber nového času v kalendári">
+      <bpmn:incoming>Flow_S_GwRescheduleRetry_S_PickNewTime</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_PickNewTime_R_Reschedule</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="S_TellNewTime" name="Oznámenie nového termínu zákazníkovi">
+      <bpmn:incoming>Flow_R_GwRescheduleOk_S_TellNewTime</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_TellNewTime_S_GwBooked</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:intermediateCatchEvent id="S_MsgCancel" name="Žiadosť o zrušenie termínu">
+      <bpmn:incoming>Flow_S_GwWait_S_MsgCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_MsgCancel_S_OpenCancel</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_S_MsgCancel" messageRef="Msg_S_MsgCancel" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="S_OpenCancel" name="Vyhľadanie termínu a voľba Zrušiť">
+      <bpmn:incoming>Flow_S_MsgCancel_S_OpenCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_OpenCancel_R_Sub_Cancel</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="S_ConfirmCancel" name="Potvrdenie zrušenia zákazníkovi">
+      <bpmn:incoming>Flow_R_Sub_Cancel_S_ConfirmCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_ConfirmCancel_S_EndCancelled</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="S_EndCancelled" name="Termín zrušený">
+      <bpmn:incoming>Flow_S_ConfirmCancel_S_EndCancelled</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sendTask id="S_ExplainCancel" name="Vysvetlenie, prečo termín nemožno zrušiť">
+      <bpmn:incoming>Flow_R_BCancelRejected_S_ExplainCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_ExplainCancel_S_EndNotCancelled</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="S_EndNotCancelled" name="Termín bez zmeny">
+      <bpmn:incoming>Flow_S_ExplainCancel_S_EndNotCancelled</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:eventBasedGateway id="S_GwArrival" name="Prišiel zákazník?">
+      <bpmn:incoming>Flow_S_TimerStart_S_GwArrival</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_GwArrival_S_MsgArrived</bpmn:outgoing>
+      <bpmn:outgoing>Flow_S_GwArrival_S_TimerNoShow</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="S_MsgArrived" name="Zákazník prišiel">
+      <bpmn:incoming>Flow_S_GwArrival_S_MsgArrived</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_MsgArrived_S_OpenDetail</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_S_MsgArrived" messageRef="Msg_S_MsgArrived" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="S_TimerNoShow" name="15 minút po začiatku bez príchodu">
+      <bpmn:incoming>Flow_S_GwArrival_S_TimerNoShow</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_TimerNoShow_S_MarkNoShow</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="Def_S_TimerNoShow">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT15M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="S_MarkNoShow" name="Označenie termínu ako Neprišiel">
+      <bpmn:incoming>Flow_S_TimerNoShow_S_MarkNoShow</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_MarkNoShow_R_SaveNoShow</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="S_OpenDetail" name="Otvorenie detailu termínu a karty zákazníka">
+      <bpmn:incoming>Flow_S_MsgArrived_S_OpenDetail</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_OpenDetail_S_Sub_Treatment</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:subProcess id="S_Sub_Treatment" name="Vykonanie ošetrenia">
+      <bpmn:incoming>Flow_S_OpenDetail_S_Sub_Treatment</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_Sub_Treatment_S_WriteNote</bpmn:outgoing>
+      <bpmn:startEvent id="S_T_Start" name="Zákazník usadený">
+        <bpmn:outgoing>Flow_S_T_Start_S_T_Consult</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:manualTask id="S_T_Consult" name="Konzultácia želaní zákazníka">
+        <bpmn:incoming>Flow_S_T_Start_S_T_Consult</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Consult_S_T_Notes</bpmn:outgoing>
+      </bpmn:manualTask>
+      <bpmn:userTask id="S_T_Notes" name="Kontrola poznámok v karte zákazníka (alergie, typ pleti)">
+        <bpmn:incoming>Flow_S_T_Consult_S_T_Notes</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Notes_S_T_Contra</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:manualTask id="S_T_Contra" name="Kontrola kontraindikácií">
+        <bpmn:incoming>Flow_S_T_Notes_S_T_Contra</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Contra_S_T_GwContra</bpmn:outgoing>
+      </bpmn:manualTask>
+      <bpmn:exclusiveGateway id="S_T_GwContra" name="Zistené kontraindikácie?">
+        <bpmn:incoming>Flow_S_T_Contra_S_T_GwContra</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_GwContra_S_T_MergeContra</bpmn:outgoing>
+        <bpmn:outgoing>Flow_S_T_GwContra_S_T_Adjust</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:manualTask id="S_T_Adjust" name="Úprava postupu ošetrenia">
+        <bpmn:incoming>Flow_S_T_GwContra_S_T_Adjust</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Adjust_S_T_MergeContra</bpmn:outgoing>
+      </bpmn:manualTask>
+      <bpmn:exclusiveGateway id="S_T_MergeContra">
+        <bpmn:incoming>Flow_S_T_GwContra_S_T_MergeContra</bpmn:incoming>
+        <bpmn:incoming>Flow_S_T_Adjust_S_T_MergeContra</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_MergeContra_S_T_Split</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:parallelGateway id="S_T_Split">
+        <bpmn:incoming>Flow_S_T_MergeContra_S_T_Split</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Split_S_T_Prepare</bpmn:outgoing>
+        <bpmn:outgoing>Flow_S_T_Split_S_T_Diagnose</bpmn:outgoing>
+      </bpmn:parallelGateway>
+      <bpmn:manualTask id="S_T_Prepare" name="Príprava pracoviska a pomôcok">
+        <bpmn:incoming>Flow_S_T_Split_S_T_Prepare</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Prepare_S_T_Join</bpmn:outgoing>
+      </bpmn:manualTask>
+      <bpmn:manualTask id="S_T_Diagnose" name="Odlíčenie a diagnostika pleti">
+        <bpmn:incoming>Flow_S_T_Split_S_T_Diagnose</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Diagnose_S_T_Join</bpmn:outgoing>
+      </bpmn:manualTask>
+      <bpmn:parallelGateway id="S_T_Join">
+        <bpmn:incoming>Flow_S_T_Prepare_S_T_Join</bpmn:incoming>
+        <bpmn:incoming>Flow_S_T_Diagnose_S_T_Join</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Join_S_T_Perform</bpmn:outgoing>
+      </bpmn:parallelGateway>
+      <bpmn:manualTask id="S_T_Perform" name="Vykonanie ošetrenia">
+        <bpmn:incoming>Flow_S_T_Join_S_T_Perform</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Perform_S_T_Advice</bpmn:outgoing>
+      </bpmn:manualTask>
+      <bpmn:manualTask id="S_T_Advice" name="Odporúčanie domácej starostlivosti">
+        <bpmn:incoming>Flow_S_T_Perform_S_T_Advice</bpmn:incoming>
+        <bpmn:outgoing>Flow_S_T_Advice_S_T_End</bpmn:outgoing>
+      </bpmn:manualTask>
+      <bpmn:endEvent id="S_T_End" name="Ošetrenie dokončené">
+        <bpmn:incoming>Flow_S_T_Advice_S_T_End</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_S_T_Start_S_T_Consult" sourceRef="S_T_Start" targetRef="S_T_Consult" />
+      <bpmn:sequenceFlow id="Flow_S_T_Consult_S_T_Notes" sourceRef="S_T_Consult" targetRef="S_T_Notes" />
+      <bpmn:sequenceFlow id="Flow_S_T_Notes_S_T_Contra" sourceRef="S_T_Notes" targetRef="S_T_Contra" />
+      <bpmn:sequenceFlow id="Flow_S_T_Contra_S_T_GwContra" sourceRef="S_T_Contra" targetRef="S_T_GwContra" />
+      <bpmn:sequenceFlow id="Flow_S_T_GwContra_S_T_MergeContra" name="Nie" sourceRef="S_T_GwContra" targetRef="S_T_MergeContra" />
+      <bpmn:sequenceFlow id="Flow_S_T_GwContra_S_T_Adjust" name="Áno" sourceRef="S_T_GwContra" targetRef="S_T_Adjust" />
+      <bpmn:sequenceFlow id="Flow_S_T_Adjust_S_T_MergeContra" sourceRef="S_T_Adjust" targetRef="S_T_MergeContra" />
+      <bpmn:sequenceFlow id="Flow_S_T_MergeContra_S_T_Split" sourceRef="S_T_MergeContra" targetRef="S_T_Split" />
+      <bpmn:sequenceFlow id="Flow_S_T_Split_S_T_Prepare" sourceRef="S_T_Split" targetRef="S_T_Prepare" />
+      <bpmn:sequenceFlow id="Flow_S_T_Split_S_T_Diagnose" sourceRef="S_T_Split" targetRef="S_T_Diagnose" />
+      <bpmn:sequenceFlow id="Flow_S_T_Prepare_S_T_Join" sourceRef="S_T_Prepare" targetRef="S_T_Join" />
+      <bpmn:sequenceFlow id="Flow_S_T_Diagnose_S_T_Join" sourceRef="S_T_Diagnose" targetRef="S_T_Join" />
+      <bpmn:sequenceFlow id="Flow_S_T_Join_S_T_Perform" sourceRef="S_T_Join" targetRef="S_T_Perform" />
+      <bpmn:sequenceFlow id="Flow_S_T_Perform_S_T_Advice" sourceRef="S_T_Perform" targetRef="S_T_Advice" />
+      <bpmn:sequenceFlow id="Flow_S_T_Advice_S_T_End" sourceRef="S_T_Advice" targetRef="S_T_End" />
+    </bpmn:subProcess>
+    <bpmn:userTask id="S_WriteNote" name="Zápis poznámky k termínu">
+      <bpmn:incoming>Flow_S_Sub_Treatment_S_WriteNote</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_WriteNote_S_GwAmount</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="S_GwAmount" name="Upraviť sumu?">
+      <bpmn:incoming>Flow_S_WriteNote_S_GwAmount</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_GwAmount_S_MergeAmount</bpmn:outgoing>
+      <bpmn:outgoing>Flow_S_GwAmount_S_EditAmount</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="S_EditAmount" name="Zadanie upravenej sumy (zľava, doplnková služba)">
+      <bpmn:incoming>Flow_S_GwAmount_S_EditAmount</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_EditAmount_S_MergeAmount</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="S_MergeAmount">
+      <bpmn:incoming>Flow_S_GwAmount_S_MergeAmount</bpmn:incoming>
+      <bpmn:incoming>Flow_S_EditAmount_S_MergeAmount</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_MergeAmount_S_ReceivePayment</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:receiveTask id="S_ReceivePayment" name="Prijatie platby">
+      <bpmn:incoming>Flow_S_MergeAmount_S_ReceivePayment</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_ReceivePayment_S_Complete</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:userTask id="S_Complete" name="Dokončenie termínu so spôsobom platby">
+      <bpmn:incoming>Flow_S_ReceivePayment_S_Complete</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_Complete_R_VerifyComplete</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="S_ShowConflict" name="Zobrazenie konfliktu stavu termínu">
+      <bpmn:incoming>Flow_R_GwCompleteOk_S_ShowConflict</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_ShowConflict_S_EndConflict</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="S_EndConflict" name="Návšteva neuzavretá">
+      <bpmn:incoming>Flow_S_ShowConflict_S_EndConflict</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="R_OnlineStart" name="Prijatá online rezervácia">
+      <bpmn:outgoing>Flow_R_OnlineStart_R_Validate</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_R_OnlineStart" messageRef="Msg_R_OnlineStart" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="R_Validate" name="Validácia údajov a súhlasu">
+      <bpmn:incoming>Flow_R_OnlineStart_R_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_Validate_R_GwValid</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="R_GwValid" name="Sú údaje platné?">
+      <bpmn:incoming>Flow_R_Validate_R_GwValid</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwValid_R_GwSourceMerge</bpmn:outgoing>
+      <bpmn:outgoing>Flow_R_GwValid_R_GwRejectMerge</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="R_GwSourceMerge">
+      <bpmn:incoming>Flow_S_EnterCustomer_R_GwSourceMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_R_GwValid_R_GwSourceMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwSourceMerge_R_GwEmployee</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="R_GwEmployee" name="Je zvolený konkrétny pracovník?">
+      <bpmn:incoming>Flow_R_GwSourceMerge_R_GwEmployee</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwEmployee_R_GwEmployeeMerge</bpmn:outgoing>
+      <bpmn:outgoing>Flow_R_GwEmployee_R_AssignEmployee</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:businessRuleTask id="R_AssignEmployee" name="Pridelenie pracovníka s najmenším počtom termínov">
+      <bpmn:incoming>Flow_R_GwEmployee_R_AssignEmployee</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_AssignEmployee_R_GwEmployeeMerge</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:exclusiveGateway id="R_GwEmployeeMerge">
+      <bpmn:incoming>Flow_R_GwEmployee_R_GwEmployeeMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_R_AssignEmployee_R_GwEmployeeMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwEmployeeMerge_R_CheckSlot</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="R_CheckSlot" name="Overenie dostupnosti slotu">
+      <bpmn:incoming>Flow_R_GwEmployeeMerge_R_CheckSlot</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_CheckSlot_R_GwSlotFree</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="R_GwSlotFree" name="Je slot voľný?">
+      <bpmn:incoming>Flow_R_CheckSlot_R_GwSlotFree</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwSlotFree_R_FindCustomer</bpmn:outgoing>
+      <bpmn:outgoing>Flow_R_GwSlotFree_R_GwRejectTaken</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="R_GwRejectTaken">
+      <bpmn:incoming>Flow_R_GwSlotFree_R_GwRejectTaken</bpmn:incoming>
+      <bpmn:incoming>Flow_R_BCollision_R_GwRejectTaken</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwRejectTaken_R_RejectTaken</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="R_RejectTaken" name="Zamietnutie: termín už nie je voľný (409)">
+      <bpmn:incoming>Flow_R_GwRejectTaken_R_RejectTaken</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_RejectTaken_R_GwSourceReject</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="R_GwSourceReject" name="Zdroj rezervácie?">
+      <bpmn:incoming>Flow_R_RejectTaken_R_GwSourceReject</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwSourceReject_R_GwRejectMerge</bpmn:outgoing>
+      <bpmn:outgoing>Flow_R_GwSourceReject_S_GwRetry</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="R_FindCustomer" name="Vyhľadanie alebo vytvorenie zákazníka podľa e-mailu">
+      <bpmn:incoming>Flow_R_GwSlotFree_R_FindCustomer</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_FindCustomer_R_SaveBooking</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="R_SaveBooking" name="Uloženie termínu v stave Scheduled">
+      <bpmn:incoming>Flow_R_FindCustomer_R_SaveBooking</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_SaveBooking_R_GwBookedSource</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="R_BCollision" name="Kolízia termínu (23P01)" attachedToRef="R_SaveBooking">
+      <bpmn:outgoing>Flow_R_BCollision_R_GwRejectTaken</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Def_R_BCollision" errorRef="Error_SlotCollision" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="R_GwBookedSource" name="Zdroj rezervácie?">
+      <bpmn:incoming>Flow_R_SaveBooking_R_GwBookedSource</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwBookedSource_R_ShowConfirm</bpmn:outgoing>
+      <bpmn:outgoing>Flow_R_GwBookedSource_S_TellBooked</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="R_ShowConfirm" name="Zobrazenie potvrdenia rezervácie">
+      <bpmn:incoming>Flow_R_GwBookedSource_R_ShowConfirm</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_ShowConfirm_S_GwBooked</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:exclusiveGateway id="R_GwRejectMerge">
+      <bpmn:incoming>Flow_R_GwValid_R_GwRejectMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_R_GwSourceReject_R_GwRejectMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwRejectMerge_R_ShowReject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="R_ShowReject" name="Zobrazenie dôvodu zamietnutia">
+      <bpmn:incoming>Flow_R_GwRejectMerge_R_ShowReject</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_ShowReject_R_EndRejected</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="R_EndRejected" name="Rezervácia nevytvorená">
+      <bpmn:incoming>Flow_R_ShowReject_R_EndRejected</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="R_Reschedule" name="Overenie slotu a uloženie nového času">
+      <bpmn:incoming>Flow_S_PickNewTime_R_Reschedule</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_Reschedule_R_GwRescheduleOk</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="R_GwRescheduleOk" name="Je nový čas voľný?">
+      <bpmn:incoming>Flow_R_Reschedule_R_GwRescheduleOk</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwRescheduleOk_S_GwRescheduleRetry</bpmn:outgoing>
+      <bpmn:outgoing>Flow_R_GwRescheduleOk_S_TellNewTime</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:subProcess id="R_Sub_Cancel" name="Zrušenie termínu">
+      <bpmn:incoming>Flow_S_OpenCancel_R_Sub_Cancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_Sub_Cancel_S_ConfirmCancel</bpmn:outgoing>
+      <bpmn:startEvent id="R_C_Start" name="Požiadavka na zrušenie">
+        <bpmn:outgoing>Flow_R_C_Start_R_C_CheckAccess</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="R_C_CheckAccess" name="Overenie roly a vlastníctva termínu">
+        <bpmn:incoming>Flow_R_C_Start_R_C_CheckAccess</bpmn:incoming>
+        <bpmn:outgoing>Flow_R_C_CheckAccess_R_C_GwAccess</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:exclusiveGateway id="R_C_GwAccess" name="Je admin alebo vlastník termínu?">
+        <bpmn:incoming>Flow_R_C_CheckAccess_R_C_GwAccess</bpmn:incoming>
+        <bpmn:outgoing>Flow_R_C_GwAccess_R_C_CheckState</bpmn:outgoing>
+        <bpmn:outgoing>Flow_R_C_GwAccess_R_C_EndNoAccess</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:endEvent id="R_C_EndNoAccess" name="Bez oprávnenia (404)">
+        <bpmn:incoming>Flow_R_C_GwAccess_R_C_EndNoAccess</bpmn:incoming>
+        <bpmn:errorEventDefinition id="Def_R_C_EndNoAccess" errorRef="Error_NoAccess" />
+      </bpmn:endEvent>
+      <bpmn:businessRuleTask id="R_C_CheckState" name="Kontrola stavu a času začiatku">
+        <bpmn:incoming>Flow_R_C_GwAccess_R_C_CheckState</bpmn:incoming>
+        <bpmn:outgoing>Flow_R_C_CheckState_R_C_GwState</bpmn:outgoing>
+      </bpmn:businessRuleTask>
+      <bpmn:exclusiveGateway id="R_C_GwState" name="Možno termín zrušiť?">
+        <bpmn:incoming>Flow_R_C_CheckState_R_C_GwState</bpmn:incoming>
+        <bpmn:outgoing>Flow_R_C_GwState_R_C_SetCancelled</bpmn:outgoing>
+        <bpmn:outgoing>Flow_R_C_GwState_R_C_EndInvalid</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:endEvent id="R_C_EndInvalid" name="Neplatný prechod stavu (409)">
+        <bpmn:incoming>Flow_R_C_GwState_R_C_EndInvalid</bpmn:incoming>
+        <bpmn:errorEventDefinition id="Def_R_C_EndInvalid" errorRef="Error_InvalidTransition" />
+      </bpmn:endEvent>
+      <bpmn:serviceTask id="R_C_SetCancelled" name="Zmena stavu na Cancelled">
+        <bpmn:incoming>Flow_R_C_GwState_R_C_SetCancelled</bpmn:incoming>
+        <bpmn:outgoing>Flow_R_C_SetCancelled_R_C_StampTime</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="R_C_StampTime" name="Zápis času zrušenia">
+        <bpmn:incoming>Flow_R_C_SetCancelled_R_C_StampTime</bpmn:incoming>
+        <bpmn:outgoing>Flow_R_C_StampTime_R_C_End</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:endEvent id="R_C_End" name="Termín zrušený">
+        <bpmn:incoming>Flow_R_C_StampTime_R_C_End</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_R_C_Start_R_C_CheckAccess" sourceRef="R_C_Start" targetRef="R_C_CheckAccess" />
+      <bpmn:sequenceFlow id="Flow_R_C_CheckAccess_R_C_GwAccess" sourceRef="R_C_CheckAccess" targetRef="R_C_GwAccess" />
+      <bpmn:sequenceFlow id="Flow_R_C_GwAccess_R_C_CheckState" name="Áno" sourceRef="R_C_GwAccess" targetRef="R_C_CheckState" />
+      <bpmn:sequenceFlow id="Flow_R_C_GwAccess_R_C_EndNoAccess" name="Nie" sourceRef="R_C_GwAccess" targetRef="R_C_EndNoAccess" />
+      <bpmn:sequenceFlow id="Flow_R_C_CheckState_R_C_GwState" sourceRef="R_C_CheckState" targetRef="R_C_GwState" />
+      <bpmn:sequenceFlow id="Flow_R_C_GwState_R_C_SetCancelled" name="Áno" sourceRef="R_C_GwState" targetRef="R_C_SetCancelled" />
+      <bpmn:sequenceFlow id="Flow_R_C_GwState_R_C_EndInvalid" name="Nie" sourceRef="R_C_GwState" targetRef="R_C_EndInvalid" />
+      <bpmn:sequenceFlow id="Flow_R_C_SetCancelled_R_C_StampTime" sourceRef="R_C_SetCancelled" targetRef="R_C_StampTime" />
+      <bpmn:sequenceFlow id="Flow_R_C_StampTime_R_C_End" sourceRef="R_C_StampTime" targetRef="R_C_End" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="R_BCancelRejected" name="Zrušenie zamietnuté" attachedToRef="R_Sub_Cancel">
+      <bpmn:outgoing>Flow_R_BCancelRejected_S_ExplainCancel</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Def_R_BCancelRejected" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="R_SaveNoShow" name="Uloženie stavu NoShow">
+      <bpmn:incoming>Flow_S_MarkNoShow_R_SaveNoShow</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_SaveNoShow_R_EndNoShow</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="R_EndNoShow" name="Termín neuskutočnený">
+      <bpmn:incoming>Flow_R_SaveNoShow_R_EndNoShow</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:businessRuleTask id="R_VerifyComplete" name="Overenie prechodu do stavu Completed">
+      <bpmn:incoming>Flow_S_Complete_R_VerifyComplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_VerifyComplete_R_GwCompleteOk</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:exclusiveGateway id="R_GwCompleteOk" name="Je prechod platný?">
+      <bpmn:incoming>Flow_R_VerifyComplete_R_GwCompleteOk</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_GwCompleteOk_R_SaveCompleted</bpmn:outgoing>
+      <bpmn:outgoing>Flow_R_GwCompleteOk_S_ShowConflict</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="R_SaveCompleted" name="Uloženie stavu Completed a platby v jednej transakcii">
+      <bpmn:incoming>Flow_R_GwCompleteOk_R_SaveCompleted</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_SaveCompleted_R_EndCompleted</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="R_EndCompleted" name="Návšteva uzavretá">
+      <bpmn:incoming>Flow_R_SaveCompleted_R_EndCompleted</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="R_IntrospectStart" name="Požiadavka na overenie session">
+      <bpmn:outgoing>Flow_R_IntrospectStart_R_Introspect</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_R_IntrospectStart" messageRef="Msg_R_IntrospectStart" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="R_Introspect" name="Overenie session a roly">
+      <bpmn:incoming>Flow_R_IntrospectStart_R_Introspect</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_Introspect_R_IntrospectReply</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="R_IntrospectReply" name="Vrátenie výsledku overenia">
+      <bpmn:incoming>Flow_R_Introspect_R_IntrospectReply</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_IntrospectReply_R_IntrospectEnd</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="R_IntrospectEnd" name="Session overená">
+      <bpmn:incoming>Flow_R_IntrospectReply_R_IntrospectEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="R_ExportStart" name="Požiadavka na export dát">
+      <bpmn:outgoing>Flow_R_ExportStart_R_CheckApiKey</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_R_ExportStart" messageRef="Msg_R_ExportStart" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="R_CheckApiKey" name="Overenie interného API kľúča">
+      <bpmn:incoming>Flow_R_ExportStart_R_CheckApiKey</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_CheckApiKey_R_BuildExport</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="R_BuildExport" name="Zostavenie pseudonymizovaného exportu">
+      <bpmn:incoming>Flow_R_CheckApiKey_R_BuildExport</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_BuildExport_R_SendExport</bpmn:outgoing>
+      <bpmn:property id="Property_R_BuildExport" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataIn_R_BuildExport">
+        <bpmn:sourceRef>R_StoreMain</bpmn:sourceRef>
+        <bpmn:targetRef>Property_R_BuildExport</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="R_SendExport" name="Odoslanie exportu">
+      <bpmn:incoming>Flow_R_BuildExport_R_SendExport</bpmn:incoming>
+      <bpmn:outgoing>Flow_R_SendExport_R_ExportEnd</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="R_ExportEnd" name="Export odoslaný">
+      <bpmn:incoming>Flow_R_SendExport_R_ExportEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataStoreReference id="R_StoreMain" name="salon_main" />
+    <bpmn:sequenceFlow id="Flow_A_Start_A_OpenDashboard" sourceRef="A_Start" targetRef="A_OpenDashboard" />
+    <bpmn:sequenceFlow id="Flow_A_OpenDashboard_A_RunPipeline" sourceRef="A_OpenDashboard" targetRef="A_RunPipeline" />
+    <bpmn:sequenceFlow id="Flow_A_RunPipeline_A_ReceiveRun" sourceRef="A_RunPipeline" targetRef="A_ReceiveRun" />
+    <bpmn:sequenceFlow id="Flow_A_ReceiveRun_A_GwRunOk" sourceRef="A_ReceiveRun" targetRef="A_GwRunOk" />
+    <bpmn:sequenceFlow id="Flow_A_GwRunOk_A_Compare" name="Áno" sourceRef="A_GwRunOk" targetRef="A_Compare" />
+    <bpmn:sequenceFlow id="Flow_A_GwRunOk_A_ShowRunError" name="Nie" sourceRef="A_GwRunOk" targetRef="A_ShowRunError" />
+    <bpmn:sequenceFlow id="Flow_A_ShowRunError_A_EndRunError" sourceRef="A_ShowRunError" targetRef="A_EndRunError" />
+    <bpmn:sequenceFlow id="Flow_A_Compare_A_SelectRisky" sourceRef="A_Compare" targetRef="A_SelectRisky" />
+    <bpmn:sequenceFlow id="Flow_A_SelectRisky_A_GwAnyRisky" sourceRef="A_SelectRisky" targetRef="A_GwAnyRisky" />
+    <bpmn:sequenceFlow id="Flow_A_GwAnyRisky_A_Sub_Retention" name="Áno" sourceRef="A_GwAnyRisky" targetRef="A_Sub_Retention" />
+    <bpmn:sequenceFlow id="Flow_A_GwAnyRisky_A_EndNoRisky" name="Nie" sourceRef="A_GwAnyRisky" targetRef="A_EndNoRisky" />
+    <bpmn:sequenceFlow id="Flow_A_Sub_Retention_A_EndRetention" sourceRef="A_Sub_Retention" targetRef="A_EndRetention" />
+    <bpmn:sequenceFlow id="Flow_S_PhoneStart_S_AskNeeds" sourceRef="S_PhoneStart" targetRef="S_AskNeeds" />
+    <bpmn:sequenceFlow id="Flow_S_AskNeeds_S_GwRetry" sourceRef="S_AskNeeds" targetRef="S_GwRetry" />
+    <bpmn:sequenceFlow id="Flow_S_GwRetry_S_FindSlot" sourceRef="S_GwRetry" targetRef="S_FindSlot" />
+    <bpmn:sequenceFlow id="Flow_S_FindSlot_S_EnterCustomer" sourceRef="S_FindSlot" targetRef="S_EnterCustomer" />
+    <bpmn:sequenceFlow id="Flow_S_EnterCustomer_R_GwSourceMerge" sourceRef="S_EnterCustomer" targetRef="R_GwSourceMerge" />
+    <bpmn:sequenceFlow id="Flow_S_TellBooked_S_GwBooked" sourceRef="S_TellBooked" targetRef="S_GwBooked" />
+    <bpmn:sequenceFlow id="Flow_S_GwBooked_S_GwWait" sourceRef="S_GwBooked" targetRef="S_GwWait" />
+    <bpmn:sequenceFlow id="Flow_S_GwWait_S_TimerStart" sourceRef="S_GwWait" targetRef="S_TimerStart" />
+    <bpmn:sequenceFlow id="Flow_S_GwWait_S_MsgReschedule" sourceRef="S_GwWait" targetRef="S_MsgReschedule" />
+    <bpmn:sequenceFlow id="Flow_S_GwWait_S_MsgCancel" sourceRef="S_GwWait" targetRef="S_MsgCancel" />
+    <bpmn:sequenceFlow id="Flow_S_TimerStart_S_GwArrival" sourceRef="S_TimerStart" targetRef="S_GwArrival" />
+    <bpmn:sequenceFlow id="Flow_S_MsgReschedule_S_GwRescheduleRetry" sourceRef="S_MsgReschedule" targetRef="S_GwRescheduleRetry" />
+    <bpmn:sequenceFlow id="Flow_S_GwRescheduleRetry_S_PickNewTime" sourceRef="S_GwRescheduleRetry" targetRef="S_PickNewTime" />
+    <bpmn:sequenceFlow id="Flow_S_PickNewTime_R_Reschedule" sourceRef="S_PickNewTime" targetRef="R_Reschedule" />
+    <bpmn:sequenceFlow id="Flow_R_Reschedule_R_GwRescheduleOk" sourceRef="R_Reschedule" targetRef="R_GwRescheduleOk" />
+    <bpmn:sequenceFlow id="Flow_R_GwRescheduleOk_S_GwRescheduleRetry" name="Nie – čas je obsadený" sourceRef="R_GwRescheduleOk" targetRef="S_GwRescheduleRetry" />
+    <bpmn:sequenceFlow id="Flow_R_GwRescheduleOk_S_TellNewTime" name="Áno" sourceRef="R_GwRescheduleOk" targetRef="S_TellNewTime" />
+    <bpmn:sequenceFlow id="Flow_S_TellNewTime_S_GwBooked" sourceRef="S_TellNewTime" targetRef="S_GwBooked" />
+    <bpmn:sequenceFlow id="Flow_S_MsgCancel_S_OpenCancel" sourceRef="S_MsgCancel" targetRef="S_OpenCancel" />
+    <bpmn:sequenceFlow id="Flow_S_OpenCancel_R_Sub_Cancel" sourceRef="S_OpenCancel" targetRef="R_Sub_Cancel" />
+    <bpmn:sequenceFlow id="Flow_R_Sub_Cancel_S_ConfirmCancel" sourceRef="R_Sub_Cancel" targetRef="S_ConfirmCancel" />
+    <bpmn:sequenceFlow id="Flow_S_ConfirmCancel_S_EndCancelled" sourceRef="S_ConfirmCancel" targetRef="S_EndCancelled" />
+    <bpmn:sequenceFlow id="Flow_R_BCancelRejected_S_ExplainCancel" sourceRef="R_BCancelRejected" targetRef="S_ExplainCancel" />
+    <bpmn:sequenceFlow id="Flow_S_ExplainCancel_S_EndNotCancelled" sourceRef="S_ExplainCancel" targetRef="S_EndNotCancelled" />
+    <bpmn:sequenceFlow id="Flow_S_GwArrival_S_MsgArrived" sourceRef="S_GwArrival" targetRef="S_MsgArrived" />
+    <bpmn:sequenceFlow id="Flow_S_GwArrival_S_TimerNoShow" sourceRef="S_GwArrival" targetRef="S_TimerNoShow" />
+    <bpmn:sequenceFlow id="Flow_S_TimerNoShow_S_MarkNoShow" sourceRef="S_TimerNoShow" targetRef="S_MarkNoShow" />
+    <bpmn:sequenceFlow id="Flow_S_MarkNoShow_R_SaveNoShow" sourceRef="S_MarkNoShow" targetRef="R_SaveNoShow" />
+    <bpmn:sequenceFlow id="Flow_R_SaveNoShow_R_EndNoShow" sourceRef="R_SaveNoShow" targetRef="R_EndNoShow" />
+    <bpmn:sequenceFlow id="Flow_S_MsgArrived_S_OpenDetail" sourceRef="S_MsgArrived" targetRef="S_OpenDetail" />
+    <bpmn:sequenceFlow id="Flow_S_OpenDetail_S_Sub_Treatment" sourceRef="S_OpenDetail" targetRef="S_Sub_Treatment" />
+    <bpmn:sequenceFlow id="Flow_S_Sub_Treatment_S_WriteNote" sourceRef="S_Sub_Treatment" targetRef="S_WriteNote" />
+    <bpmn:sequenceFlow id="Flow_S_WriteNote_S_GwAmount" sourceRef="S_WriteNote" targetRef="S_GwAmount" />
+    <bpmn:sequenceFlow id="Flow_S_GwAmount_S_MergeAmount" name="Nie" sourceRef="S_GwAmount" targetRef="S_MergeAmount" />
+    <bpmn:sequenceFlow id="Flow_S_GwAmount_S_EditAmount" name="Áno" sourceRef="S_GwAmount" targetRef="S_EditAmount" />
+    <bpmn:sequenceFlow id="Flow_S_EditAmount_S_MergeAmount" sourceRef="S_EditAmount" targetRef="S_MergeAmount" />
+    <bpmn:sequenceFlow id="Flow_S_MergeAmount_S_ReceivePayment" sourceRef="S_MergeAmount" targetRef="S_ReceivePayment" />
+    <bpmn:sequenceFlow id="Flow_S_ReceivePayment_S_Complete" sourceRef="S_ReceivePayment" targetRef="S_Complete" />
+    <bpmn:sequenceFlow id="Flow_S_Complete_R_VerifyComplete" sourceRef="S_Complete" targetRef="R_VerifyComplete" />
+    <bpmn:sequenceFlow id="Flow_R_VerifyComplete_R_GwCompleteOk" sourceRef="R_VerifyComplete" targetRef="R_GwCompleteOk" />
+    <bpmn:sequenceFlow id="Flow_R_GwCompleteOk_R_SaveCompleted" name="Áno" sourceRef="R_GwCompleteOk" targetRef="R_SaveCompleted" />
+    <bpmn:sequenceFlow id="Flow_R_GwCompleteOk_S_ShowConflict" name="Nie (409)" sourceRef="R_GwCompleteOk" targetRef="S_ShowConflict" />
+    <bpmn:sequenceFlow id="Flow_R_SaveCompleted_R_EndCompleted" sourceRef="R_SaveCompleted" targetRef="R_EndCompleted" />
+    <bpmn:sequenceFlow id="Flow_S_ShowConflict_S_EndConflict" sourceRef="S_ShowConflict" targetRef="S_EndConflict" />
+    <bpmn:sequenceFlow id="Flow_R_OnlineStart_R_Validate" sourceRef="R_OnlineStart" targetRef="R_Validate" />
+    <bpmn:sequenceFlow id="Flow_R_Validate_R_GwValid" sourceRef="R_Validate" targetRef="R_GwValid" />
+    <bpmn:sequenceFlow id="Flow_R_GwValid_R_GwSourceMerge" name="Áno" sourceRef="R_GwValid" targetRef="R_GwSourceMerge" />
+    <bpmn:sequenceFlow id="Flow_R_GwValid_R_GwRejectMerge" name="Nie (400)" sourceRef="R_GwValid" targetRef="R_GwRejectMerge" />
+    <bpmn:sequenceFlow id="Flow_R_GwSourceMerge_R_GwEmployee" sourceRef="R_GwSourceMerge" targetRef="R_GwEmployee" />
+    <bpmn:sequenceFlow id="Flow_R_GwEmployee_R_GwEmployeeMerge" name="Áno" sourceRef="R_GwEmployee" targetRef="R_GwEmployeeMerge" />
+    <bpmn:sequenceFlow id="Flow_R_GwEmployee_R_AssignEmployee" name="Nie – „ktokoľvek“" sourceRef="R_GwEmployee" targetRef="R_AssignEmployee" />
+    <bpmn:sequenceFlow id="Flow_R_AssignEmployee_R_GwEmployeeMerge" sourceRef="R_AssignEmployee" targetRef="R_GwEmployeeMerge" />
+    <bpmn:sequenceFlow id="Flow_R_GwEmployeeMerge_R_CheckSlot" sourceRef="R_GwEmployeeMerge" targetRef="R_CheckSlot" />
+    <bpmn:sequenceFlow id="Flow_R_CheckSlot_R_GwSlotFree" sourceRef="R_CheckSlot" targetRef="R_GwSlotFree" />
+    <bpmn:sequenceFlow id="Flow_R_GwSlotFree_R_FindCustomer" name="Áno" sourceRef="R_GwSlotFree" targetRef="R_FindCustomer" />
+    <bpmn:sequenceFlow id="Flow_R_GwSlotFree_R_GwRejectTaken" name="Nie" sourceRef="R_GwSlotFree" targetRef="R_GwRejectTaken" />
+    <bpmn:sequenceFlow id="Flow_R_GwRejectTaken_R_RejectTaken" sourceRef="R_GwRejectTaken" targetRef="R_RejectTaken" />
+    <bpmn:sequenceFlow id="Flow_R_RejectTaken_R_GwSourceReject" sourceRef="R_RejectTaken" targetRef="R_GwSourceReject" />
+    <bpmn:sequenceFlow id="Flow_R_GwSourceReject_R_GwRejectMerge" name="Online" sourceRef="R_GwSourceReject" targetRef="R_GwRejectMerge" />
+    <bpmn:sequenceFlow id="Flow_R_GwSourceReject_S_GwRetry" name="Telefonicky – ponúknuť iný čas" sourceRef="R_GwSourceReject" targetRef="S_GwRetry" />
+    <bpmn:sequenceFlow id="Flow_R_FindCustomer_R_SaveBooking" sourceRef="R_FindCustomer" targetRef="R_SaveBooking" />
+    <bpmn:sequenceFlow id="Flow_R_SaveBooking_R_GwBookedSource" sourceRef="R_SaveBooking" targetRef="R_GwBookedSource" />
+    <bpmn:sequenceFlow id="Flow_R_BCollision_R_GwRejectTaken" sourceRef="R_BCollision" targetRef="R_GwRejectTaken" />
+    <bpmn:sequenceFlow id="Flow_R_GwBookedSource_R_ShowConfirm" name="Online" sourceRef="R_GwBookedSource" targetRef="R_ShowConfirm" />
+    <bpmn:sequenceFlow id="Flow_R_GwBookedSource_S_TellBooked" name="Telefonicky" sourceRef="R_GwBookedSource" targetRef="S_TellBooked" />
+    <bpmn:sequenceFlow id="Flow_R_ShowConfirm_S_GwBooked" sourceRef="R_ShowConfirm" targetRef="S_GwBooked" />
+    <bpmn:sequenceFlow id="Flow_R_GwRejectMerge_R_ShowReject" sourceRef="R_GwRejectMerge" targetRef="R_ShowReject" />
+    <bpmn:sequenceFlow id="Flow_R_ShowReject_R_EndRejected" sourceRef="R_ShowReject" targetRef="R_EndRejected" />
+    <bpmn:sequenceFlow id="Flow_R_IntrospectStart_R_Introspect" sourceRef="R_IntrospectStart" targetRef="R_Introspect" />
+    <bpmn:sequenceFlow id="Flow_R_Introspect_R_IntrospectReply" sourceRef="R_Introspect" targetRef="R_IntrospectReply" />
+    <bpmn:sequenceFlow id="Flow_R_IntrospectReply_R_IntrospectEnd" sourceRef="R_IntrospectReply" targetRef="R_IntrospectEnd" />
+    <bpmn:sequenceFlow id="Flow_R_ExportStart_R_CheckApiKey" sourceRef="R_ExportStart" targetRef="R_CheckApiKey" />
+    <bpmn:sequenceFlow id="Flow_R_CheckApiKey_R_BuildExport" sourceRef="R_CheckApiKey" targetRef="R_BuildExport" />
+    <bpmn:sequenceFlow id="Flow_R_BuildExport_R_SendExport" sourceRef="R_BuildExport" targetRef="R_SendExport" />
+    <bpmn:sequenceFlow id="Flow_R_SendExport_R_ExportEnd" sourceRef="R_SendExport" targetRef="R_ExportEnd" />
+    <bpmn:textAnnotation id="Annot_PhoneRole"><bpmn:text>User rezervuje iba pre seba, Admin pre ľubovoľného pracovníka.</bpmn:text></bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Annot_PhoneRole" associationDirection="None" sourceRef="S_AskNeeds" targetRef="Annot_PhoneRole" />
+    <bpmn:textAnnotation id="Annot_Wait"><bpmn:text>Kým termín nenastane, zákazník ho môže preplánovať alebo zrušiť.</bpmn:text></bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Annot_Wait" associationDirection="None" sourceRef="S_GwWait" targetRef="Annot_Wait" />
+    <bpmn:textAnnotation id="Annot_Export"><bpmn:text>Bez mien, e-mailov, telefónov a poznámok – iba pseudonymné ID.</bpmn:text></bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Annot_Export" associationDirection="None" sourceRef="R_BuildExport" targetRef="Annot_Export" />
+  </bpmn:process>
+  <bpmn:process id="Process_ML" name="ML služba (predikcia odchodu)" isExecutable="false">
+    <bpmn:documentation>Samostatná služba (FastAPI, databáza salon_ml). S hlavným backendom komunikuje iba cez HTTP: overenie session a stiahnutie pseudonymizovaného exportu.</bpmn:documentation>
+    <bpmn:startEvent id="M_Start" name="Požiadavka na prepočet">
+      <bpmn:outgoing>Flow_M_Start_M_AskIntrospect</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Def_M_Start" messageRef="Msg_M_Start" />
+    </bpmn:startEvent>
+    <bpmn:sendTask id="M_AskIntrospect" name="Overenie session cez hlavný backend">
+      <bpmn:incoming>Flow_M_Start_M_AskIntrospect</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_AskIntrospect_M_ReceiveIntrospect</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="M_ReceiveIntrospect" name="Prijatie výsledku overenia">
+      <bpmn:incoming>Flow_M_AskIntrospect_M_ReceiveIntrospect</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_ReceiveIntrospect_M_GwAuth</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="M_GwAuth" name="Platná session s rolou Admin?">
+      <bpmn:incoming>Flow_M_ReceiveIntrospect_M_GwAuth</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_GwAuth_M_Lock</bpmn:outgoing>
+      <bpmn:outgoing>Flow_M_GwAuth_M_ErrMerge1</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="M_Lock" name="Získanie zámku behu">
+      <bpmn:incoming>Flow_M_GwAuth_M_Lock</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_Lock_M_GwRunning</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="M_GwRunning" name="Prebieha už iný beh?">
+      <bpmn:incoming>Flow_M_Lock_M_GwRunning</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_GwRunning_M_AskExport</bpmn:outgoing>
+      <bpmn:outgoing>Flow_M_GwRunning_M_ErrMerge1</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="M_ErrMerge1">
+      <bpmn:incoming>Flow_M_GwAuth_M_ErrMerge1</bpmn:incoming>
+      <bpmn:incoming>Flow_M_GwRunning_M_ErrMerge1</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_ErrMerge1_M_ErrMerge2</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="M_AskExport" name="Vyžiadanie exportu z hlavného backendu">
+      <bpmn:incoming>Flow_M_GwRunning_M_AskExport</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_AskExport_M_ReceiveExport</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="M_ReceiveExport" name="Prijatie exportu">
+      <bpmn:incoming>Flow_M_AskExport_M_ReceiveExport</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_ReceiveExport_M_SaveRaw</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:serviceTask id="M_SaveRaw" name="Uloženie dát do raw tabuliek (sync)">
+      <bpmn:incoming>Flow_M_ReceiveExport_M_SaveRaw</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_SaveRaw_M_Sub_Train</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_M_SaveRaw">
+        <bpmn:targetRef>M_StoreMl</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:dataStoreReference id="M_StoreMl" name="salon_ml" />
+    <bpmn:subProcess id="M_Sub_Train" name="Tréning modelu a predikcia rizika">
+      <bpmn:incoming>Flow_M_SaveRaw_M_Sub_Train</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_Sub_Train_M_SendSummary</bpmn:outgoing>
+      <bpmn:startEvent id="M_T_Start" name="Dáta synchronizované">
+        <bpmn:outgoing>Flow_M_T_Start_M_T_Snapshots</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="M_T_Snapshots" name="Zostavenie snapshotov k 8 dátumom">
+        <bpmn:incoming>Flow_M_T_Start_M_T_Snapshots</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Snapshots_M_T_Features</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_Features" name="Výpočet príznakov bez úniku budúcich dát">
+        <bpmn:incoming>Flow_M_T_Snapshots_M_T_Features</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Features_M_T_Labels</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_Labels" name="Výpočet labelov (odchod do 90 dní)">
+        <bpmn:incoming>Flow_M_T_Features_M_T_Labels</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Labels_M_T_GwEnough</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:exclusiveGateway id="M_T_GwEnough" name="Dostatok histórie na tréning?">
+        <bpmn:incoming>Flow_M_T_Labels_M_T_GwEnough</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_GwEnough_M_T_Split</bpmn:outgoing>
+        <bpmn:outgoing>Flow_M_T_GwEnough_M_T_EndNoData</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:endEvent id="M_T_EndNoData" name="Nedostatok histórie (422)">
+        <bpmn:incoming>Flow_M_T_GwEnough_M_T_EndNoData</bpmn:incoming>
+        <bpmn:errorEventDefinition id="Def_M_T_EndNoData" errorRef="Error_NoHistory" />
+      </bpmn:endEvent>
+      <bpmn:parallelGateway id="M_T_Split">
+        <bpmn:incoming>Flow_M_T_GwEnough_M_T_Split</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Split_M_T_LR</bpmn:outgoing>
+        <bpmn:outgoing>Flow_M_T_Split_M_T_RF</bpmn:outgoing>
+        <bpmn:outgoing>Flow_M_T_Split_M_T_HGB</bpmn:outgoing>
+        <bpmn:outgoing>Flow_M_T_Split_M_T_Baseline</bpmn:outgoing>
+      </bpmn:parallelGateway>
+      <bpmn:serviceTask id="M_T_LR" name="Tréning LogisticRegression">
+        <bpmn:incoming>Flow_M_T_Split_M_T_LR</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_LR_M_T_Join</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_RF" name="Tréning RandomForest">
+        <bpmn:incoming>Flow_M_T_Split_M_T_RF</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_RF_M_T_Join</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_HGB" name="Tréning HistGradientBoosting">
+        <bpmn:incoming>Flow_M_T_Split_M_T_HGB</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_HGB_M_T_Join</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:businessRuleTask id="M_T_Baseline" name="Vyhodnotenie baseline pravidla">
+        <bpmn:incoming>Flow_M_T_Split_M_T_Baseline</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Baseline_M_T_Join</bpmn:outgoing>
+      </bpmn:businessRuleTask>
+      <bpmn:parallelGateway id="M_T_Join">
+        <bpmn:incoming>Flow_M_T_LR_M_T_Join</bpmn:incoming>
+        <bpmn:incoming>Flow_M_T_RF_M_T_Join</bpmn:incoming>
+        <bpmn:incoming>Flow_M_T_HGB_M_T_Join</bpmn:incoming>
+        <bpmn:incoming>Flow_M_T_Baseline_M_T_Join</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Join_M_T_Select</bpmn:outgoing>
+      </bpmn:parallelGateway>
+      <bpmn:businessRuleTask id="M_T_Select" name="Výber víťaza podľa ROC-AUC">
+        <bpmn:incoming>Flow_M_T_Join_M_T_Select</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Select_M_T_Importance</bpmn:outgoing>
+      </bpmn:businessRuleTask>
+      <bpmn:serviceTask id="M_T_Importance" name="Výpočet dôležitosti príznakov">
+        <bpmn:incoming>Flow_M_T_Select_M_T_Importance</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Importance_M_T_Retrain</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_Retrain" name="Pretrénovanie víťaza na všetkých snapshotoch">
+        <bpmn:incoming>Flow_M_T_Importance_M_T_Retrain</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Retrain_M_T_SaveModel</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_SaveModel" name="Uloženie aktívnej verzie modelu">
+        <bpmn:incoming>Flow_M_T_Retrain_M_T_SaveModel</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_SaveModel_M_T_Predict</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_Predict" name="Predikcia rizika pre zákazníkov">
+        <bpmn:incoming>Flow_M_T_SaveModel_M_T_Predict</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Predict_M_T_Explain</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="M_T_Explain" name="Generovanie zdôvodnení">
+        <bpmn:incoming>Flow_M_T_Predict_M_T_Explain</bpmn:incoming>
+        <bpmn:outgoing>Flow_M_T_Explain_M_T_End</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:endEvent id="M_T_End" name="Model a predikcie uložené">
+        <bpmn:incoming>Flow_M_T_Explain_M_T_End</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_M_T_Start_M_T_Snapshots" sourceRef="M_T_Start" targetRef="M_T_Snapshots" />
+      <bpmn:sequenceFlow id="Flow_M_T_Snapshots_M_T_Features" sourceRef="M_T_Snapshots" targetRef="M_T_Features" />
+      <bpmn:sequenceFlow id="Flow_M_T_Features_M_T_Labels" sourceRef="M_T_Features" targetRef="M_T_Labels" />
+      <bpmn:sequenceFlow id="Flow_M_T_Labels_M_T_GwEnough" sourceRef="M_T_Labels" targetRef="M_T_GwEnough" />
+      <bpmn:sequenceFlow id="Flow_M_T_GwEnough_M_T_Split" name="Áno" sourceRef="M_T_GwEnough" targetRef="M_T_Split" />
+      <bpmn:sequenceFlow id="Flow_M_T_GwEnough_M_T_EndNoData" name="Nie" sourceRef="M_T_GwEnough" targetRef="M_T_EndNoData" />
+      <bpmn:sequenceFlow id="Flow_M_T_Split_M_T_LR" sourceRef="M_T_Split" targetRef="M_T_LR" />
+      <bpmn:sequenceFlow id="Flow_M_T_LR_M_T_Join" sourceRef="M_T_LR" targetRef="M_T_Join" />
+      <bpmn:sequenceFlow id="Flow_M_T_Split_M_T_RF" sourceRef="M_T_Split" targetRef="M_T_RF" />
+      <bpmn:sequenceFlow id="Flow_M_T_RF_M_T_Join" sourceRef="M_T_RF" targetRef="M_T_Join" />
+      <bpmn:sequenceFlow id="Flow_M_T_Split_M_T_HGB" sourceRef="M_T_Split" targetRef="M_T_HGB" />
+      <bpmn:sequenceFlow id="Flow_M_T_HGB_M_T_Join" sourceRef="M_T_HGB" targetRef="M_T_Join" />
+      <bpmn:sequenceFlow id="Flow_M_T_Split_M_T_Baseline" sourceRef="M_T_Split" targetRef="M_T_Baseline" />
+      <bpmn:sequenceFlow id="Flow_M_T_Baseline_M_T_Join" sourceRef="M_T_Baseline" targetRef="M_T_Join" />
+      <bpmn:sequenceFlow id="Flow_M_T_Join_M_T_Select" sourceRef="M_T_Join" targetRef="M_T_Select" />
+      <bpmn:sequenceFlow id="Flow_M_T_Select_M_T_Importance" sourceRef="M_T_Select" targetRef="M_T_Importance" />
+      <bpmn:sequenceFlow id="Flow_M_T_Importance_M_T_Retrain" sourceRef="M_T_Importance" targetRef="M_T_Retrain" />
+      <bpmn:sequenceFlow id="Flow_M_T_Retrain_M_T_SaveModel" sourceRef="M_T_Retrain" targetRef="M_T_SaveModel" />
+      <bpmn:sequenceFlow id="Flow_M_T_SaveModel_M_T_Predict" sourceRef="M_T_SaveModel" targetRef="M_T_Predict" />
+      <bpmn:sequenceFlow id="Flow_M_T_Predict_M_T_Explain" sourceRef="M_T_Predict" targetRef="M_T_Explain" />
+      <bpmn:sequenceFlow id="Flow_M_T_Explain_M_T_End" sourceRef="M_T_Explain" targetRef="M_T_End" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="M_BNoData" name="Nedostatok histórie" attachedToRef="M_Sub_Train">
+      <bpmn:outgoing>Flow_M_BNoData_M_ErrMerge2</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Def_M_BNoData" errorRef="Error_NoHistory" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="M_ErrMerge2">
+      <bpmn:incoming>Flow_M_ErrMerge1_M_ErrMerge2</bpmn:incoming>
+      <bpmn:incoming>Flow_M_BNoData_M_ErrMerge2</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_ErrMerge2_M_SendError</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="M_SendSummary" name="Odoslanie súhrnu behu">
+      <bpmn:incoming>Flow_M_Sub_Train_M_SendSummary</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_SendSummary_M_EndOk</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="M_EndOk" name="Prepočet dokončený">
+      <bpmn:incoming>Flow_M_SendSummary_M_EndOk</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sendTask id="M_SendError" name="Vrátenie chyby (ProblemDetails)">
+      <bpmn:incoming>Flow_M_ErrMerge2_M_SendError</bpmn:incoming>
+      <bpmn:outgoing>Flow_M_SendError_M_EndError</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="M_EndError" name="Prepočet zamietnutý">
+      <bpmn:incoming>Flow_M_SendError_M_EndError</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_M_Start_M_AskIntrospect" sourceRef="M_Start" targetRef="M_AskIntrospect" />
+    <bpmn:sequenceFlow id="Flow_M_AskIntrospect_M_ReceiveIntrospect" sourceRef="M_AskIntrospect" targetRef="M_ReceiveIntrospect" />
+    <bpmn:sequenceFlow id="Flow_M_ReceiveIntrospect_M_GwAuth" sourceRef="M_ReceiveIntrospect" targetRef="M_GwAuth" />
+    <bpmn:sequenceFlow id="Flow_M_GwAuth_M_Lock" name="Áno" sourceRef="M_GwAuth" targetRef="M_Lock" />
+    <bpmn:sequenceFlow id="Flow_M_GwAuth_M_ErrMerge1" name="Nie (401/403)" sourceRef="M_GwAuth" targetRef="M_ErrMerge1" />
+    <bpmn:sequenceFlow id="Flow_M_Lock_M_GwRunning" sourceRef="M_Lock" targetRef="M_GwRunning" />
+    <bpmn:sequenceFlow id="Flow_M_GwRunning_M_AskExport" name="Nie" sourceRef="M_GwRunning" targetRef="M_AskExport" />
+    <bpmn:sequenceFlow id="Flow_M_GwRunning_M_ErrMerge1" name="Áno (409)" sourceRef="M_GwRunning" targetRef="M_ErrMerge1" />
+    <bpmn:sequenceFlow id="Flow_M_AskExport_M_ReceiveExport" sourceRef="M_AskExport" targetRef="M_ReceiveExport" />
+    <bpmn:sequenceFlow id="Flow_M_ReceiveExport_M_SaveRaw" sourceRef="M_ReceiveExport" targetRef="M_SaveRaw" />
+    <bpmn:sequenceFlow id="Flow_M_SaveRaw_M_Sub_Train" sourceRef="M_SaveRaw" targetRef="M_Sub_Train" />
+    <bpmn:sequenceFlow id="Flow_M_Sub_Train_M_SendSummary" sourceRef="M_Sub_Train" targetRef="M_SendSummary" />
+    <bpmn:sequenceFlow id="Flow_M_SendSummary_M_EndOk" sourceRef="M_SendSummary" targetRef="M_EndOk" />
+    <bpmn:sequenceFlow id="Flow_M_ErrMerge1_M_ErrMerge2" sourceRef="M_ErrMerge1" targetRef="M_ErrMerge2" />
+    <bpmn:sequenceFlow id="Flow_M_BNoData_M_ErrMerge2" sourceRef="M_BNoData" targetRef="M_ErrMerge2" />
+    <bpmn:sequenceFlow id="Flow_M_ErrMerge2_M_SendError" sourceRef="M_ErrMerge2" targetRef="M_SendError" />
+    <bpmn:sequenceFlow id="Flow_M_SendError_M_EndError" sourceRef="M_SendError" targetRef="M_EndError" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_SalonCrm">
+    <bpmndi:BPMNPlane id="Plane_SalonCrm" bpmnElement="Collaboration_SalonCrm">
+      <bpmndi:BPMNShape id="Participant_Customer_di" bpmnElement="Participant_Customer" isHorizontal="true"><dc:Bounds x="160" y="0" width="16338" height="390" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Salon_di" bpmnElement="Participant_Salon" isHorizontal="true"><dc:Bounds x="160" y="430" width="16338" height="1290" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Admin_di" bpmnElement="Lane_Admin" isHorizontal="true"><dc:Bounds x="190" y="430" width="16308" height="390" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Staff_di" bpmnElement="Lane_Staff" isHorizontal="true"><dc:Bounds x="190" y="820" width="16308" height="390" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_CRM_di" bpmnElement="Lane_CRM" isHorizontal="true"><dc:Bounds x="190" y="1210" width="16308" height="510" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_ML_di" bpmnElement="Participant_ML" isHorizontal="true"><dc:Bounds x="160" y="1760" width="16338" height="630" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Sub_Retention_di" bpmnElement="A_Sub_Retention" isExpanded="true"><dc:Bounds x="14952" y="440" width="1216" height="255" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Sub_Treatment_di" bpmnElement="S_Sub_Treatment" isExpanded="true"><dc:Bounds x="6552" y="830" width="1776" height="255" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_Sub_Cancel_di" bpmnElement="R_Sub_Cancel" isExpanded="true"><dc:Bounds x="4312" y="1340" width="1076" height="233" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_Sub_Train_di" bpmnElement="M_Sub_Train" isExpanded="true"><dc:Bounds x="12012" y="1770" width="2056" height="495" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Start_di" bpmnElement="C_Start"><dc:Bounds x="282" y="57" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="245" y="99" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_GwChannel_di" bpmnElement="C_GwChannel" isMarkerVisible="true"><dc:Bounds x="415" y="50" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="385" y="16" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_SelectService_di" bpmnElement="C_SelectService"><dc:Bounds x="530" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_SelectEmployee_di" bpmnElement="C_SelectEmployee"><dc:Bounds x="670" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_GwRetry_di" bpmnElement="C_GwRetry" isMarkerVisible="true"><dc:Bounds x="835" y="50" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_SelectSlot_di" bpmnElement="C_SelectSlot"><dc:Bounds x="950" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_FillContact_di" bpmnElement="C_FillContact"><dc:Bounds x="1090" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Consent_di" bpmnElement="C_Consent"><dc:Bounds x="1230" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Submit_di" bpmnElement="C_Submit"><dc:Bounds x="1370" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_ReceiveResult_di" bpmnElement="C_ReceiveResult"><dc:Bounds x="3190" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_GwCreated_di" bpmnElement="C_GwCreated" isMarkerVisible="true"><dc:Bounds x="3355" y="50" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="3409" y="16" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Call_di" bpmnElement="C_Call"><dc:Bounds x="530" y="275" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_ReceivePhoneConfirm_di" bpmnElement="C_ReceivePhoneConfirm"><dc:Bounds x="3050" y="275" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_GwBooked_di" bpmnElement="C_GwBooked" isMarkerVisible="true"><dc:Bounds x="3495" y="170" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_GwAttend_di" bpmnElement="C_GwAttend" isMarkerVisible="true"><dc:Bounds x="3635" y="170" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="3689" y="136" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_RequestReschedule_di" bpmnElement="C_RequestReschedule"><dc:Bounds x="3890" y="155" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_ReceiveNewTime_di" bpmnElement="C_ReceiveNewTime"><dc:Bounds x="4730" y="155" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_RequestCancel_di" bpmnElement="C_RequestCancel"><dc:Bounds x="4030" y="275" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_ReceiveCancelAnswer_di" bpmnElement="C_ReceiveCancelAnswer"><dc:Bounds x="5430" y="275" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_EndCancel_di" bpmnElement="C_EndCancel"><dc:Bounds x="5602" y="297" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="5565" y="339" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Arrive_di" bpmnElement="C_Arrive"><dc:Bounds x="6130" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Undergo_di" bpmnElement="C_Undergo"><dc:Bounds x="7390" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Pay_di" bpmnElement="C_Pay"><dc:Bounds x="8930" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_EndVisit_di" bpmnElement="C_EndVisit"><dc:Bounds x="9102" y="57" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="9065" y="99" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_RetentionStart_di" bpmnElement="C_RetentionStart"><dc:Bounds x="15262" y="57" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="15225" y="37" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Talk_di" bpmnElement="C_Talk"><dc:Bounds x="15370" y="35" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_GwInterest_di" bpmnElement="C_GwInterest" isMarkerVisible="true"><dc:Bounds x="15535" y="50" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="15505" y="16" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_AgreeTime_di" bpmnElement="C_AgreeTime"><dc:Bounds x="15650" y="155" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_EndNewTime_di" bpmnElement="C_EndNewTime"><dc:Bounds x="15822" y="177" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="15785" y="219" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_EndNoInterest_di" bpmnElement="C_EndNoInterest"><dc:Bounds x="15822" y="57" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="15785" y="99" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Start_di" bpmnElement="A_Start"><dc:Bounds x="10082" y="487" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="10045" y="529" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_OpenDashboard_di" bpmnElement="A_OpenDashboard"><dc:Bounds x="10190" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_RunPipeline_di" bpmnElement="A_RunPipeline"><dc:Bounds x="10330" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_ReceiveRun_di" bpmnElement="A_ReceiveRun"><dc:Bounds x="14110" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_GwRunOk_di" bpmnElement="A_GwRunOk" isMarkerVisible="true"><dc:Bounds x="14415" y="480" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="14385" y="460" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_ShowRunError_di" bpmnElement="A_ShowRunError"><dc:Bounds x="14530" y="585" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_EndRunError_di" bpmnElement="A_EndRunError"><dc:Bounds x="14702" y="607" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="14665" y="649" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Compare_di" bpmnElement="A_Compare"><dc:Bounds x="14530" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_SelectRisky_di" bpmnElement="A_SelectRisky"><dc:Bounds x="14670" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_GwAnyRisky_di" bpmnElement="A_GwAnyRisky" isMarkerVisible="true"><dc:Bounds x="14835" y="480" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="14805" y="446" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_EndNoRisky_di" bpmnElement="A_EndNoRisky"><dc:Bounds x="14982" y="727" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="14945" y="769" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_Start_di" bpmnElement="A_R_Start"><dc:Bounds x="14982" y="487" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="14945" y="529" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_Load_di" bpmnElement="A_R_Load"><dc:Bounds x="15090" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_Contact_di" bpmnElement="A_R_Contact"><dc:Bounds x="15230" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_Gw_di" bpmnElement="A_R_Gw" isMarkerVisible="true"><dc:Bounds x="15395" y="480" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="15365" y="446" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_Book_di" bpmnElement="A_R_Book"><dc:Bounds x="15650" y="585" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_Merge_di" bpmnElement="A_R_Merge" isMarkerVisible="true"><dc:Bounds x="15815" y="480" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_Record_di" bpmnElement="A_R_Record"><dc:Bounds x="15930" y="465" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_R_End_di" bpmnElement="A_R_End"><dc:Bounds x="16102" y="487" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="16065" y="529" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_EndRetention_di" bpmnElement="A_EndRetention"><dc:Bounds x="16382" y="487" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="16345" y="529" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PhoneStart_di" bpmnElement="S_PhoneStart"><dc:Bounds x="562" y="877" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="525" y="919" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AskNeeds_di" bpmnElement="S_AskNeeds"><dc:Bounds x="670" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GwRetry_di" bpmnElement="S_GwRetry" isMarkerVisible="true"><dc:Bounds x="835" y="870" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_FindSlot_di" bpmnElement="S_FindSlot"><dc:Bounds x="950" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EnterCustomer_di" bpmnElement="S_EnterCustomer"><dc:Bounds x="1090" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_TellBooked_di" bpmnElement="S_TellBooked"><dc:Bounds x="3050" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GwBooked_di" bpmnElement="S_GwBooked" isMarkerVisible="true"><dc:Bounds x="3495" y="990" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GwWait_di" bpmnElement="S_GwWait"><dc:Bounds x="3635" y="990" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="3689" y="970" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_TimerStart_di" bpmnElement="S_TimerStart"><dc:Bounds x="3782" y="877" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="3745" y="919" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_MsgReschedule_di" bpmnElement="S_MsgReschedule"><dc:Bounds x="3922" y="997" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="3885" y="1039" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GwRescheduleRetry_di" bpmnElement="S_GwRescheduleRetry" isMarkerVisible="true"><dc:Bounds x="4195" y="990" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PickNewTime_di" bpmnElement="S_PickNewTime"><dc:Bounds x="4310" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_TellNewTime_di" bpmnElement="S_TellNewTime"><dc:Bounds x="4730" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_MsgCancel_di" bpmnElement="S_MsgCancel"><dc:Bounds x="4062" y="1117" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="4025" y="1159" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_OpenCancel_di" bpmnElement="S_OpenCancel"><dc:Bounds x="4170" y="1095" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ConfirmCancel_di" bpmnElement="S_ConfirmCancel"><dc:Bounds x="5430" y="1095" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EndCancelled_di" bpmnElement="S_EndCancelled"><dc:Bounds x="5602" y="1117" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="5565" y="1159" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ExplainCancel_di" bpmnElement="S_ExplainCancel"><dc:Bounds x="5710" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EndNotCancelled_di" bpmnElement="S_EndNotCancelled"><dc:Bounds x="5882" y="997" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="5845" y="1039" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GwArrival_di" bpmnElement="S_GwArrival"><dc:Bounds x="6015" y="870" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="5985" y="850" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_MsgArrived_di" bpmnElement="S_MsgArrived"><dc:Bounds x="6162" y="877" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="6125" y="919" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_TimerNoShow_di" bpmnElement="S_TimerNoShow"><dc:Bounds x="6162" y="997" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="6125" y="1039" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_MarkNoShow_di" bpmnElement="S_MarkNoShow"><dc:Bounds x="6270" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_OpenDetail_di" bpmnElement="S_OpenDetail"><dc:Bounds x="6270" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Start_di" bpmnElement="S_T_Start"><dc:Bounds x="6582" y="877" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="6545" y="919" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Consult_di" bpmnElement="S_T_Consult"><dc:Bounds x="6690" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Notes_di" bpmnElement="S_T_Notes"><dc:Bounds x="6830" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Contra_di" bpmnElement="S_T_Contra"><dc:Bounds x="6970" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_GwContra_di" bpmnElement="S_T_GwContra" isMarkerVisible="true"><dc:Bounds x="7135" y="870" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="7105" y="836" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Adjust_di" bpmnElement="S_T_Adjust"><dc:Bounds x="7250" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_MergeContra_di" bpmnElement="S_T_MergeContra" isMarkerVisible="true"><dc:Bounds x="7415" y="870" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Split_di" bpmnElement="S_T_Split"><dc:Bounds x="7555" y="870" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Prepare_di" bpmnElement="S_T_Prepare"><dc:Bounds x="7670" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Diagnose_di" bpmnElement="S_T_Diagnose"><dc:Bounds x="7670" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Join_di" bpmnElement="S_T_Join"><dc:Bounds x="7835" y="870" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Perform_di" bpmnElement="S_T_Perform"><dc:Bounds x="7950" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Advice_di" bpmnElement="S_T_Advice"><dc:Bounds x="8090" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_End_di" bpmnElement="S_T_End"><dc:Bounds x="8262" y="877" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="8225" y="919" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_WriteNote_di" bpmnElement="S_WriteNote"><dc:Bounds x="8370" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GwAmount_di" bpmnElement="S_GwAmount" isMarkerVisible="true"><dc:Bounds x="8535" y="870" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="8505" y="850" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EditAmount_di" bpmnElement="S_EditAmount"><dc:Bounds x="8650" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_MergeAmount_di" bpmnElement="S_MergeAmount" isMarkerVisible="true"><dc:Bounds x="8815" y="870" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ReceivePayment_di" bpmnElement="S_ReceivePayment"><dc:Bounds x="8930" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Complete_di" bpmnElement="S_Complete"><dc:Bounds x="9070" y="855" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ShowConflict_di" bpmnElement="S_ShowConflict"><dc:Bounds x="9490" y="975" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EndConflict_di" bpmnElement="S_EndConflict"><dc:Bounds x="9662" y="997" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="9625" y="1039" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_OnlineStart_di" bpmnElement="R_OnlineStart"><dc:Bounds x="1402" y="1267" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1365" y="1309" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_Validate_di" bpmnElement="R_Validate"><dc:Bounds x="1510" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwValid_di" bpmnElement="R_GwValid" isMarkerVisible="true"><dc:Bounds x="1675" y="1260" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1645" y="1240" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwSourceMerge_di" bpmnElement="R_GwSourceMerge" isMarkerVisible="true"><dc:Bounds x="1815" y="1260" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwEmployee_di" bpmnElement="R_GwEmployee" isMarkerVisible="true"><dc:Bounds x="1955" y="1260" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1925" y="1226" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_AssignEmployee_di" bpmnElement="R_AssignEmployee"><dc:Bounds x="2070" y="1365" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwEmployeeMerge_di" bpmnElement="R_GwEmployeeMerge" isMarkerVisible="true"><dc:Bounds x="2235" y="1260" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_CheckSlot_di" bpmnElement="R_CheckSlot"><dc:Bounds x="2350" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwSlotFree_di" bpmnElement="R_GwSlotFree" isMarkerVisible="true"><dc:Bounds x="2515" y="1260" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2485" y="1240" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwRejectTaken_di" bpmnElement="R_GwRejectTaken" isMarkerVisible="true"><dc:Bounds x="2515" y="1404" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_RejectTaken_di" bpmnElement="R_RejectTaken"><dc:Bounds x="2490" y="1485" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwSourceReject_di" bpmnElement="R_GwSourceReject" isMarkerVisible="true"><dc:Bounds x="2655" y="1500" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2625" y="1480" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_FindCustomer_di" bpmnElement="R_FindCustomer"><dc:Bounds x="2630" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_SaveBooking_di" bpmnElement="R_SaveBooking"><dc:Bounds x="2770" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_BCollision_di" bpmnElement="R_BCollision"><dc:Bounds x="2777" y="1307" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2740" y="1273" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwBookedSource_di" bpmnElement="R_GwBookedSource" isMarkerVisible="true"><dc:Bounds x="2935" y="1260" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2905" y="1316" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_ShowConfirm_di" bpmnElement="R_ShowConfirm"><dc:Bounds x="3190" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwRejectMerge_di" bpmnElement="R_GwRejectMerge" isMarkerVisible="true"><dc:Bounds x="2935" y="1500" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_ShowReject_di" bpmnElement="R_ShowReject"><dc:Bounds x="3330" y="1485" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_EndRejected_di" bpmnElement="R_EndRejected"><dc:Bounds x="3502" y="1507" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="3465" y="1549" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_Reschedule_di" bpmnElement="R_Reschedule"><dc:Bounds x="4450" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwRescheduleOk_di" bpmnElement="R_GwRescheduleOk" isMarkerVisible="true"><dc:Bounds x="4615" y="1260" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="4585" y="1316" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_Start_di" bpmnElement="R_C_Start"><dc:Bounds x="4342" y="1387" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="4305" y="1429" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_CheckAccess_di" bpmnElement="R_C_CheckAccess"><dc:Bounds x="4450" y="1365" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_GwAccess_di" bpmnElement="R_C_GwAccess" isMarkerVisible="true"><dc:Bounds x="4615" y="1380" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="4585" y="1346" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_EndNoAccess_di" bpmnElement="R_C_EndNoAccess"><dc:Bounds x="4622" y="1507" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="4585" y="1549" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_CheckState_di" bpmnElement="R_C_CheckState"><dc:Bounds x="4730" y="1365" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_GwState_di" bpmnElement="R_C_GwState" isMarkerVisible="true"><dc:Bounds x="4895" y="1380" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="4865" y="1346" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_EndInvalid_di" bpmnElement="R_C_EndInvalid"><dc:Bounds x="4902" y="1507" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="4865" y="1549" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_SetCancelled_di" bpmnElement="R_C_SetCancelled"><dc:Bounds x="5010" y="1365" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_StampTime_di" bpmnElement="R_C_StampTime"><dc:Bounds x="5150" y="1365" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_C_End_di" bpmnElement="R_C_End"><dc:Bounds x="5322" y="1387" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="5285" y="1429" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_BCancelRejected_di" bpmnElement="R_BCancelRejected"><dc:Bounds x="5182" y="1555" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="5145" y="1521" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_SaveNoShow_di" bpmnElement="R_SaveNoShow"><dc:Bounds x="6410" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_EndNoShow_di" bpmnElement="R_EndNoShow"><dc:Bounds x="6582" y="1267" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="6545" y="1309" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_VerifyComplete_di" bpmnElement="R_VerifyComplete"><dc:Bounds x="9210" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_GwCompleteOk_di" bpmnElement="R_GwCompleteOk" isMarkerVisible="true"><dc:Bounds x="9375" y="1260" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="9345" y="1316" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_SaveCompleted_di" bpmnElement="R_SaveCompleted"><dc:Bounds x="9490" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_EndCompleted_di" bpmnElement="R_EndCompleted"><dc:Bounds x="9662" y="1267" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="9625" y="1309" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_IntrospectStart_di" bpmnElement="R_IntrospectStart"><dc:Bounds x="10502" y="1267" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="10465" y="1233" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_Introspect_di" bpmnElement="R_Introspect"><dc:Bounds x="10610" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_IntrospectReply_di" bpmnElement="R_IntrospectReply"><dc:Bounds x="10750" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_IntrospectEnd_di" bpmnElement="R_IntrospectEnd"><dc:Bounds x="10922" y="1267" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="10885" y="1309" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_ExportStart_di" bpmnElement="R_ExportStart"><dc:Bounds x="11342" y="1267" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="11305" y="1233" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_CheckApiKey_di" bpmnElement="R_CheckApiKey"><dc:Bounds x="11450" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_BuildExport_di" bpmnElement="R_BuildExport"><dc:Bounds x="11590" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_SendExport_di" bpmnElement="R_SendExport"><dc:Bounds x="11730" y="1245" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_ExportEnd_di" bpmnElement="R_ExportEnd"><dc:Bounds x="11902" y="1267" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="11865" y="1309" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="R_StoreMain_di" bpmnElement="R_StoreMain"><dc:Bounds x="11615" y="1380" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="11585" y="1436" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_Start_di" bpmnElement="M_Start"><dc:Bounds x="10362" y="1817" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="10325" y="1859" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_AskIntrospect_di" bpmnElement="M_AskIntrospect"><dc:Bounds x="10470" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_ReceiveIntrospect_di" bpmnElement="M_ReceiveIntrospect"><dc:Bounds x="10750" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_GwAuth_di" bpmnElement="M_GwAuth" isMarkerVisible="true"><dc:Bounds x="10915" y="1810" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="10885" y="1776" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_Lock_di" bpmnElement="M_Lock"><dc:Bounds x="11030" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_GwRunning_di" bpmnElement="M_GwRunning" isMarkerVisible="true"><dc:Bounds x="11195" y="1810" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="11165" y="1776" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_ErrMerge1_di" bpmnElement="M_ErrMerge1" isMarkerVisible="true"><dc:Bounds x="11195" y="2290" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_AskExport_di" bpmnElement="M_AskExport"><dc:Bounds x="11310" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_ReceiveExport_di" bpmnElement="M_ReceiveExport"><dc:Bounds x="11730" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_SaveRaw_di" bpmnElement="M_SaveRaw"><dc:Bounds x="11870" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_StoreMl_di" bpmnElement="M_StoreMl"><dc:Bounds x="11895" y="1990" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="11865" y="2046" width="110" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Start_di" bpmnElement="M_T_Start"><dc:Bounds x="12042" y="1817" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="12005" y="1859" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Snapshots_di" bpmnElement="M_T_Snapshots"><dc:Bounds x="12150" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Features_di" bpmnElement="M_T_Features"><dc:Bounds x="12290" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Labels_di" bpmnElement="M_T_Labels"><dc:Bounds x="12430" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_GwEnough_di" bpmnElement="M_T_GwEnough" isMarkerVisible="true"><dc:Bounds x="12595" y="1810" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="12565" y="1776" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_EndNoData_di" bpmnElement="M_T_EndNoData"><dc:Bounds x="12602" y="1937" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="12565" y="1979" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Split_di" bpmnElement="M_T_Split"><dc:Bounds x="12735" y="1810" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_LR_di" bpmnElement="M_T_LR"><dc:Bounds x="12850" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_RF_di" bpmnElement="M_T_RF"><dc:Bounds x="12850" y="1915" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_HGB_di" bpmnElement="M_T_HGB"><dc:Bounds x="12850" y="2035" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Baseline_di" bpmnElement="M_T_Baseline"><dc:Bounds x="12850" y="2155" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Join_di" bpmnElement="M_T_Join"><dc:Bounds x="13015" y="1810" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Select_di" bpmnElement="M_T_Select"><dc:Bounds x="13130" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Importance_di" bpmnElement="M_T_Importance"><dc:Bounds x="13270" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Retrain_di" bpmnElement="M_T_Retrain"><dc:Bounds x="13410" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_SaveModel_di" bpmnElement="M_T_SaveModel"><dc:Bounds x="13550" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Predict_di" bpmnElement="M_T_Predict"><dc:Bounds x="13690" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_Explain_di" bpmnElement="M_T_Explain"><dc:Bounds x="13830" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_T_End_di" bpmnElement="M_T_End"><dc:Bounds x="14002" y="1817" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="13965" y="1859" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_BNoData_di" bpmnElement="M_BNoData"><dc:Bounds x="12602" y="2247" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="12565" y="2213" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_ErrMerge2_di" bpmnElement="M_ErrMerge2" isMarkerVisible="true"><dc:Bounds x="12595" y="2290" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_SendSummary_di" bpmnElement="M_SendSummary"><dc:Bounds x="14110" y="1795" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_EndOk_di" bpmnElement="M_EndOk"><dc:Bounds x="14422" y="1817" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="14385" y="1859" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_SendError_di" bpmnElement="M_SendError"><dc:Bounds x="14250" y="2275" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="M_EndError_di" bpmnElement="M_EndError"><dc:Bounds x="14422" y="2297" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="14385" y="2339" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annot_PhoneRole_di" bpmnElement="Annot_PhoneRole"><dc:Bounds x="670" y="715" width="190" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Annot_PhoneRole_di" bpmnElement="Assoc_Annot_PhoneRole"><di:waypoint x="710" y="855" /><di:waypoint x="710" y="775" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Annot_Wait_di" bpmnElement="Annot_Wait"><dc:Bounds x="3610" y="715" width="190" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Annot_Wait_di" bpmnElement="Assoc_Annot_Wait"><di:waypoint x="3650" y="1000" /><di:waypoint x="3650" y="775" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Annot_Export_di" bpmnElement="Annot_Export"><dc:Bounds x="11565" y="1495" width="190" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Annot_Export_di" bpmnElement="Assoc_Annot_Export"><di:waypoint x="11605" y="1325" /><di:waypoint x="11605" y="1495" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Start_C_GwChannel_di" bpmnElement="Flow_C_Start_C_GwChannel"><di:waypoint x="318" y="75" /><di:waypoint x="415" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwChannel_C_SelectService_di" bpmnElement="Flow_C_GwChannel_C_SelectService"><di:waypoint x="465" y="75" /><di:waypoint x="530" y="75" /><bpmndi:BPMNLabel><dc:Bounds x="471" y="57" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwChannel_C_Call_di" bpmnElement="Flow_C_GwChannel_C_Call"><di:waypoint x="440" y="100" /><di:waypoint x="440" y="315" /><di:waypoint x="530" y="315" /><bpmndi:BPMNLabel><dc:Bounds x="445" y="104" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_SelectService_C_SelectEmployee_di" bpmnElement="Flow_C_SelectService_C_SelectEmployee"><di:waypoint x="630" y="75" /><di:waypoint x="670" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_SelectEmployee_C_GwRetry_di" bpmnElement="Flow_C_SelectEmployee_C_GwRetry"><di:waypoint x="770" y="75" /><di:waypoint x="835" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwRetry_C_SelectSlot_di" bpmnElement="Flow_C_GwRetry_C_SelectSlot"><di:waypoint x="885" y="75" /><di:waypoint x="950" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_SelectSlot_C_FillContact_di" bpmnElement="Flow_C_SelectSlot_C_FillContact"><di:waypoint x="1050" y="75" /><di:waypoint x="1090" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_FillContact_C_Consent_di" bpmnElement="Flow_C_FillContact_C_Consent"><di:waypoint x="1190" y="75" /><di:waypoint x="1230" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Consent_C_Submit_di" bpmnElement="Flow_C_Consent_C_Submit"><di:waypoint x="1330" y="75" /><di:waypoint x="1370" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Submit_C_ReceiveResult_di" bpmnElement="Flow_C_Submit_C_ReceiveResult"><di:waypoint x="1470" y="75" /><di:waypoint x="3190" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_ReceiveResult_C_GwCreated_di" bpmnElement="Flow_C_ReceiveResult_C_GwCreated"><di:waypoint x="3290" y="75" /><di:waypoint x="3355" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwCreated_C_GwBooked_di" bpmnElement="Flow_C_GwCreated_C_GwBooked"><di:waypoint x="3380" y="100" /><di:waypoint x="3380" y="195" /><di:waypoint x="3495" y="195" /><bpmndi:BPMNLabel><dc:Bounds x="3385" y="104" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwCreated_C_GwRetry_di" bpmnElement="Flow_C_GwCreated_C_GwRetry"><di:waypoint x="3380" y="50" /><di:waypoint x="3380" y="17" /><di:waypoint x="860" y="17" /><di:waypoint x="860" y="50" /><bpmndi:BPMNLabel><dc:Bounds x="3385" y="18" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Call_C_ReceivePhoneConfirm_di" bpmnElement="Flow_C_Call_C_ReceivePhoneConfirm"><di:waypoint x="630" y="315" /><di:waypoint x="3050" y="315" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_ReceivePhoneConfirm_C_GwBooked_di" bpmnElement="Flow_C_ReceivePhoneConfirm_C_GwBooked"><di:waypoint x="3150" y="315" /><di:waypoint x="3520" y="315" /><di:waypoint x="3520" y="220" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwBooked_C_GwAttend_di" bpmnElement="Flow_C_GwBooked_C_GwAttend"><di:waypoint x="3545" y="195" /><di:waypoint x="3635" y="195" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwAttend_C_Arrive_di" bpmnElement="Flow_C_GwAttend_C_Arrive"><di:waypoint x="3660" y="170" /><di:waypoint x="3660" y="75" /><di:waypoint x="6130" y="75" /><bpmndi:BPMNLabel><dc:Bounds x="3665" y="152" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwAttend_C_RequestReschedule_di" bpmnElement="Flow_C_GwAttend_C_RequestReschedule"><di:waypoint x="3685" y="195" /><di:waypoint x="3890" y="195" /><bpmndi:BPMNLabel><dc:Bounds x="3691" y="163" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwAttend_C_RequestCancel_di" bpmnElement="Flow_C_GwAttend_C_RequestCancel"><di:waypoint x="3660" y="220" /><di:waypoint x="3660" y="315" /><di:waypoint x="4030" y="315" /><bpmndi:BPMNLabel><dc:Bounds x="3665" y="224" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_RequestReschedule_C_ReceiveNewTime_di" bpmnElement="Flow_C_RequestReschedule_C_ReceiveNewTime"><di:waypoint x="3990" y="195" /><di:waypoint x="4730" y="195" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_ReceiveNewTime_C_GwBooked_di" bpmnElement="Flow_C_ReceiveNewTime_C_GwBooked"><di:waypoint x="4780" y="155" /><di:waypoint x="4780" y="135" /><di:waypoint x="3520" y="135" /><di:waypoint x="3520" y="170" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_RequestCancel_C_ReceiveCancelAnswer_di" bpmnElement="Flow_C_RequestCancel_C_ReceiveCancelAnswer"><di:waypoint x="4130" y="315" /><di:waypoint x="5430" y="315" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_ReceiveCancelAnswer_C_EndCancel_di" bpmnElement="Flow_C_ReceiveCancelAnswer_C_EndCancel"><di:waypoint x="5530" y="315" /><di:waypoint x="5602" y="315" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Arrive_C_Undergo_di" bpmnElement="Flow_C_Arrive_C_Undergo"><di:waypoint x="6230" y="75" /><di:waypoint x="7390" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Undergo_C_Pay_di" bpmnElement="Flow_C_Undergo_C_Pay"><di:waypoint x="7490" y="75" /><di:waypoint x="8930" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Pay_C_EndVisit_di" bpmnElement="Flow_C_Pay_C_EndVisit"><di:waypoint x="9030" y="75" /><di:waypoint x="9102" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_RetentionStart_C_Talk_di" bpmnElement="Flow_C_RetentionStart_C_Talk"><di:waypoint x="15298" y="75" /><di:waypoint x="15370" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_Talk_C_GwInterest_di" bpmnElement="Flow_C_Talk_C_GwInterest"><di:waypoint x="15470" y="75" /><di:waypoint x="15535" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwInterest_C_EndNoInterest_di" bpmnElement="Flow_C_GwInterest_C_EndNoInterest"><di:waypoint x="15585" y="75" /><di:waypoint x="15822" y="75" /><bpmndi:BPMNLabel><dc:Bounds x="15591" y="57" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_GwInterest_C_AgreeTime_di" bpmnElement="Flow_C_GwInterest_C_AgreeTime"><di:waypoint x="15560" y="100" /><di:waypoint x="15560" y="195" /><di:waypoint x="15650" y="195" /><bpmndi:BPMNLabel><dc:Bounds x="15565" y="104" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_AgreeTime_C_EndNewTime_di" bpmnElement="Flow_C_AgreeTime_C_EndNewTime"><di:waypoint x="15750" y="195" /><di:waypoint x="15822" y="195" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_Start_A_OpenDashboard_di" bpmnElement="Flow_A_Start_A_OpenDashboard"><di:waypoint x="10118" y="505" /><di:waypoint x="10190" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_OpenDashboard_A_RunPipeline_di" bpmnElement="Flow_A_OpenDashboard_A_RunPipeline"><di:waypoint x="10290" y="505" /><di:waypoint x="10330" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_RunPipeline_A_ReceiveRun_di" bpmnElement="Flow_A_RunPipeline_A_ReceiveRun"><di:waypoint x="10430" y="505" /><di:waypoint x="14110" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_ReceiveRun_A_GwRunOk_di" bpmnElement="Flow_A_ReceiveRun_A_GwRunOk"><di:waypoint x="14210" y="505" /><di:waypoint x="14415" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_GwRunOk_A_Compare_di" bpmnElement="Flow_A_GwRunOk_A_Compare"><di:waypoint x="14465" y="505" /><di:waypoint x="14530" y="505" /><bpmndi:BPMNLabel><dc:Bounds x="14471" y="487" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_GwRunOk_A_ShowRunError_di" bpmnElement="Flow_A_GwRunOk_A_ShowRunError"><di:waypoint x="14440" y="530" /><di:waypoint x="14440" y="625" /><di:waypoint x="14530" y="625" /><bpmndi:BPMNLabel><dc:Bounds x="14445" y="534" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_ShowRunError_A_EndRunError_di" bpmnElement="Flow_A_ShowRunError_A_EndRunError"><di:waypoint x="14630" y="625" /><di:waypoint x="14702" y="625" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_Compare_A_SelectRisky_di" bpmnElement="Flow_A_Compare_A_SelectRisky"><di:waypoint x="14630" y="505" /><di:waypoint x="14670" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_SelectRisky_A_GwAnyRisky_di" bpmnElement="Flow_A_SelectRisky_A_GwAnyRisky"><di:waypoint x="14770" y="505" /><di:waypoint x="14835" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_GwAnyRisky_A_Sub_Retention_di" bpmnElement="Flow_A_GwAnyRisky_A_Sub_Retention"><di:waypoint x="14885" y="505" /><di:waypoint x="14952" y="505" /><bpmndi:BPMNLabel><dc:Bounds x="14891" y="487" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_GwAnyRisky_A_EndNoRisky_di" bpmnElement="Flow_A_GwAnyRisky_A_EndNoRisky"><di:waypoint x="14860" y="530" /><di:waypoint x="14860" y="745" /><di:waypoint x="14982" y="745" /><bpmndi:BPMNLabel><dc:Bounds x="14865" y="534" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_Sub_Retention_A_EndRetention_di" bpmnElement="Flow_A_Sub_Retention_A_EndRetention"><di:waypoint x="16168" y="505" /><di:waypoint x="16382" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Start_A_R_Load_di" bpmnElement="Flow_A_R_Start_A_R_Load"><di:waypoint x="15018" y="505" /><di:waypoint x="15090" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Load_A_R_Contact_di" bpmnElement="Flow_A_R_Load_A_R_Contact"><di:waypoint x="15190" y="505" /><di:waypoint x="15230" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Contact_A_R_Gw_di" bpmnElement="Flow_A_R_Contact_A_R_Gw"><di:waypoint x="15330" y="505" /><di:waypoint x="15395" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Gw_A_R_Merge_di" bpmnElement="Flow_A_R_Gw_A_R_Merge"><di:waypoint x="15445" y="505" /><di:waypoint x="15815" y="505" /><bpmndi:BPMNLabel><dc:Bounds x="15451" y="487" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Gw_A_R_Book_di" bpmnElement="Flow_A_R_Gw_A_R_Book"><di:waypoint x="15420" y="530" /><di:waypoint x="15420" y="625" /><di:waypoint x="15650" y="625" /><bpmndi:BPMNLabel><dc:Bounds x="15425" y="534" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Book_A_R_Merge_di" bpmnElement="Flow_A_R_Book_A_R_Merge"><di:waypoint x="15750" y="625" /><di:waypoint x="15840" y="625" /><di:waypoint x="15840" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Merge_A_R_Record_di" bpmnElement="Flow_A_R_Merge_A_R_Record"><di:waypoint x="15865" y="505" /><di:waypoint x="15930" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_R_Record_A_R_End_di" bpmnElement="Flow_A_R_Record_A_R_End"><di:waypoint x="16030" y="505" /><di:waypoint x="16102" y="505" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_PhoneStart_S_AskNeeds_di" bpmnElement="Flow_S_PhoneStart_S_AskNeeds"><di:waypoint x="598" y="895" /><di:waypoint x="670" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_AskNeeds_S_GwRetry_di" bpmnElement="Flow_S_AskNeeds_S_GwRetry"><di:waypoint x="770" y="895" /><di:waypoint x="835" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwRetry_S_FindSlot_di" bpmnElement="Flow_S_GwRetry_S_FindSlot"><di:waypoint x="885" y="895" /><di:waypoint x="950" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_FindSlot_S_EnterCustomer_di" bpmnElement="Flow_S_FindSlot_S_EnterCustomer"><di:waypoint x="1050" y="895" /><di:waypoint x="1090" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_EnterCustomer_R_GwSourceMerge_di" bpmnElement="Flow_S_EnterCustomer_R_GwSourceMerge"><di:waypoint x="1190" y="895" /><di:waypoint x="1840" y="895" /><di:waypoint x="1840" y="1260" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_TellBooked_S_GwBooked_di" bpmnElement="Flow_S_TellBooked_S_GwBooked"><di:waypoint x="3150" y="895" /><di:waypoint x="3520" y="895" /><di:waypoint x="3520" y="990" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwBooked_S_GwWait_di" bpmnElement="Flow_S_GwBooked_S_GwWait"><di:waypoint x="3545" y="1015" /><di:waypoint x="3635" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwWait_S_TimerStart_di" bpmnElement="Flow_S_GwWait_S_TimerStart"><di:waypoint x="3660" y="990" /><di:waypoint x="3660" y="895" /><di:waypoint x="3782" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwWait_S_MsgReschedule_di" bpmnElement="Flow_S_GwWait_S_MsgReschedule"><di:waypoint x="3685" y="1015" /><di:waypoint x="3922" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwWait_S_MsgCancel_di" bpmnElement="Flow_S_GwWait_S_MsgCancel"><di:waypoint x="3660" y="1040" /><di:waypoint x="3660" y="1135" /><di:waypoint x="4062" y="1135" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_TimerStart_S_GwArrival_di" bpmnElement="Flow_S_TimerStart_S_GwArrival"><di:waypoint x="3818" y="895" /><di:waypoint x="6015" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_MsgReschedule_S_GwRescheduleRetry_di" bpmnElement="Flow_S_MsgReschedule_S_GwRescheduleRetry"><di:waypoint x="3958" y="1015" /><di:waypoint x="4195" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwRescheduleRetry_S_PickNewTime_di" bpmnElement="Flow_S_GwRescheduleRetry_S_PickNewTime"><di:waypoint x="4245" y="1015" /><di:waypoint x="4310" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_PickNewTime_R_Reschedule_di" bpmnElement="Flow_S_PickNewTime_R_Reschedule"><di:waypoint x="4410" y="1015" /><di:waypoint x="4500" y="1015" /><di:waypoint x="4500" y="1245" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_Reschedule_R_GwRescheduleOk_di" bpmnElement="Flow_R_Reschedule_R_GwRescheduleOk"><di:waypoint x="4550" y="1285" /><di:waypoint x="4615" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwRescheduleOk_S_GwRescheduleRetry_di" bpmnElement="Flow_R_GwRescheduleOk_S_GwRescheduleRetry"><di:waypoint x="4640" y="1260" /><di:waypoint x="4640" y="1075" /><di:waypoint x="4220" y="1075" /><di:waypoint x="4220" y="1040" /><bpmndi:BPMNLabel><dc:Bounds x="4645" y="1228" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwRescheduleOk_S_TellNewTime_di" bpmnElement="Flow_R_GwRescheduleOk_S_TellNewTime"><di:waypoint x="4665" y="1285" /><di:waypoint x="4780" y="1285" /><di:waypoint x="4780" y="1055" /><bpmndi:BPMNLabel><dc:Bounds x="4671" y="1267" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_TellNewTime_S_GwBooked_di" bpmnElement="Flow_S_TellNewTime_S_GwBooked"><di:waypoint x="4830" y="1015" /><di:waypoint x="4860" y="1015" /><di:waypoint x="4860" y="837" /><di:waypoint x="3475" y="837" /><di:waypoint x="3475" y="1015" /><di:waypoint x="3495" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_MsgCancel_S_OpenCancel_di" bpmnElement="Flow_S_MsgCancel_S_OpenCancel"><di:waypoint x="4098" y="1135" /><di:waypoint x="4170" y="1135" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_OpenCancel_R_Sub_Cancel_di" bpmnElement="Flow_S_OpenCancel_R_Sub_Cancel"><di:waypoint x="4220" y="1175" /><di:waypoint x="4220" y="1405" /><di:waypoint x="4312" y="1405" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_Sub_Cancel_S_ConfirmCancel_di" bpmnElement="Flow_R_Sub_Cancel_S_ConfirmCancel"><di:waypoint x="5388" y="1405" /><di:waypoint x="5480" y="1405" /><di:waypoint x="5480" y="1175" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_ConfirmCancel_S_EndCancelled_di" bpmnElement="Flow_S_ConfirmCancel_S_EndCancelled"><di:waypoint x="5530" y="1135" /><di:waypoint x="5602" y="1135" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_BCancelRejected_S_ExplainCancel_di" bpmnElement="Flow_R_BCancelRejected_S_ExplainCancel"><di:waypoint x="5200" y="1591" /><di:waypoint x="5200" y="1645" /><di:waypoint x="5760" y="1645" /><di:waypoint x="5760" y="1055" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_ExplainCancel_S_EndNotCancelled_di" bpmnElement="Flow_S_ExplainCancel_S_EndNotCancelled"><di:waypoint x="5810" y="1015" /><di:waypoint x="5882" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwArrival_S_MsgArrived_di" bpmnElement="Flow_S_GwArrival_S_MsgArrived"><di:waypoint x="6065" y="895" /><di:waypoint x="6162" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwArrival_S_TimerNoShow_di" bpmnElement="Flow_S_GwArrival_S_TimerNoShow"><di:waypoint x="6040" y="920" /><di:waypoint x="6040" y="1015" /><di:waypoint x="6162" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_TimerNoShow_S_MarkNoShow_di" bpmnElement="Flow_S_TimerNoShow_S_MarkNoShow"><di:waypoint x="6198" y="1015" /><di:waypoint x="6270" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_MarkNoShow_R_SaveNoShow_di" bpmnElement="Flow_S_MarkNoShow_R_SaveNoShow"><di:waypoint x="6370" y="1015" /><di:waypoint x="6460" y="1015" /><di:waypoint x="6460" y="1245" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_SaveNoShow_R_EndNoShow_di" bpmnElement="Flow_R_SaveNoShow_R_EndNoShow"><di:waypoint x="6510" y="1285" /><di:waypoint x="6582" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_MsgArrived_S_OpenDetail_di" bpmnElement="Flow_S_MsgArrived_S_OpenDetail"><di:waypoint x="6198" y="895" /><di:waypoint x="6270" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_OpenDetail_S_Sub_Treatment_di" bpmnElement="Flow_S_OpenDetail_S_Sub_Treatment"><di:waypoint x="6370" y="895" /><di:waypoint x="6552" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_Sub_Treatment_S_WriteNote_di" bpmnElement="Flow_S_Sub_Treatment_S_WriteNote"><di:waypoint x="8328" y="895" /><di:waypoint x="8370" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Start_S_T_Consult_di" bpmnElement="Flow_S_T_Start_S_T_Consult"><di:waypoint x="6618" y="895" /><di:waypoint x="6690" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Consult_S_T_Notes_di" bpmnElement="Flow_S_T_Consult_S_T_Notes"><di:waypoint x="6790" y="895" /><di:waypoint x="6830" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Notes_S_T_Contra_di" bpmnElement="Flow_S_T_Notes_S_T_Contra"><di:waypoint x="6930" y="895" /><di:waypoint x="6970" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Contra_S_T_GwContra_di" bpmnElement="Flow_S_T_Contra_S_T_GwContra"><di:waypoint x="7070" y="895" /><di:waypoint x="7135" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_GwContra_S_T_MergeContra_di" bpmnElement="Flow_S_T_GwContra_S_T_MergeContra"><di:waypoint x="7185" y="895" /><di:waypoint x="7415" y="895" /><bpmndi:BPMNLabel><dc:Bounds x="7191" y="877" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_GwContra_S_T_Adjust_di" bpmnElement="Flow_S_T_GwContra_S_T_Adjust"><di:waypoint x="7160" y="920" /><di:waypoint x="7160" y="1015" /><di:waypoint x="7250" y="1015" /><bpmndi:BPMNLabel><dc:Bounds x="7165" y="924" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Adjust_S_T_MergeContra_di" bpmnElement="Flow_S_T_Adjust_S_T_MergeContra"><di:waypoint x="7350" y="1015" /><di:waypoint x="7440" y="1015" /><di:waypoint x="7440" y="920" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_MergeContra_S_T_Split_di" bpmnElement="Flow_S_T_MergeContra_S_T_Split"><di:waypoint x="7465" y="895" /><di:waypoint x="7555" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Split_S_T_Prepare_di" bpmnElement="Flow_S_T_Split_S_T_Prepare"><di:waypoint x="7605" y="895" /><di:waypoint x="7670" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Split_S_T_Diagnose_di" bpmnElement="Flow_S_T_Split_S_T_Diagnose"><di:waypoint x="7580" y="920" /><di:waypoint x="7580" y="1015" /><di:waypoint x="7670" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Prepare_S_T_Join_di" bpmnElement="Flow_S_T_Prepare_S_T_Join"><di:waypoint x="7770" y="895" /><di:waypoint x="7835" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Diagnose_S_T_Join_di" bpmnElement="Flow_S_T_Diagnose_S_T_Join"><di:waypoint x="7770" y="1015" /><di:waypoint x="7860" y="1015" /><di:waypoint x="7860" y="920" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Join_S_T_Perform_di" bpmnElement="Flow_S_T_Join_S_T_Perform"><di:waypoint x="7885" y="895" /><di:waypoint x="7950" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Perform_S_T_Advice_di" bpmnElement="Flow_S_T_Perform_S_T_Advice"><di:waypoint x="8050" y="895" /><di:waypoint x="8090" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_T_Advice_S_T_End_di" bpmnElement="Flow_S_T_Advice_S_T_End"><di:waypoint x="8190" y="895" /><di:waypoint x="8262" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_WriteNote_S_GwAmount_di" bpmnElement="Flow_S_WriteNote_S_GwAmount"><di:waypoint x="8470" y="895" /><di:waypoint x="8535" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwAmount_S_MergeAmount_di" bpmnElement="Flow_S_GwAmount_S_MergeAmount"><di:waypoint x="8585" y="895" /><di:waypoint x="8815" y="895" /><bpmndi:BPMNLabel><dc:Bounds x="8591" y="877" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_GwAmount_S_EditAmount_di" bpmnElement="Flow_S_GwAmount_S_EditAmount"><di:waypoint x="8560" y="920" /><di:waypoint x="8560" y="1015" /><di:waypoint x="8650" y="1015" /><bpmndi:BPMNLabel><dc:Bounds x="8565" y="924" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_EditAmount_S_MergeAmount_di" bpmnElement="Flow_S_EditAmount_S_MergeAmount"><di:waypoint x="8750" y="1015" /><di:waypoint x="8840" y="1015" /><di:waypoint x="8840" y="920" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_MergeAmount_S_ReceivePayment_di" bpmnElement="Flow_S_MergeAmount_S_ReceivePayment"><di:waypoint x="8865" y="895" /><di:waypoint x="8930" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_ReceivePayment_S_Complete_di" bpmnElement="Flow_S_ReceivePayment_S_Complete"><di:waypoint x="9030" y="895" /><di:waypoint x="9070" y="895" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_Complete_R_VerifyComplete_di" bpmnElement="Flow_S_Complete_R_VerifyComplete"><di:waypoint x="9170" y="895" /><di:waypoint x="9260" y="895" /><di:waypoint x="9260" y="1245" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_VerifyComplete_R_GwCompleteOk_di" bpmnElement="Flow_R_VerifyComplete_R_GwCompleteOk"><di:waypoint x="9310" y="1285" /><di:waypoint x="9375" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwCompleteOk_R_SaveCompleted_di" bpmnElement="Flow_R_GwCompleteOk_R_SaveCompleted"><di:waypoint x="9425" y="1285" /><di:waypoint x="9490" y="1285" /><bpmndi:BPMNLabel><dc:Bounds x="9431" y="1267" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwCompleteOk_S_ShowConflict_di" bpmnElement="Flow_R_GwCompleteOk_S_ShowConflict"><di:waypoint x="9400" y="1260" /><di:waypoint x="9400" y="1015" /><di:waypoint x="9490" y="1015" /><bpmndi:BPMNLabel><dc:Bounds x="9405" y="1242" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_SaveCompleted_R_EndCompleted_di" bpmnElement="Flow_R_SaveCompleted_R_EndCompleted"><di:waypoint x="9590" y="1285" /><di:waypoint x="9662" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_ShowConflict_S_EndConflict_di" bpmnElement="Flow_S_ShowConflict_S_EndConflict"><di:waypoint x="9590" y="1015" /><di:waypoint x="9662" y="1015" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_OnlineStart_R_Validate_di" bpmnElement="Flow_R_OnlineStart_R_Validate"><di:waypoint x="1438" y="1285" /><di:waypoint x="1510" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_Validate_R_GwValid_di" bpmnElement="Flow_R_Validate_R_GwValid"><di:waypoint x="1610" y="1285" /><di:waypoint x="1675" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwValid_R_GwSourceMerge_di" bpmnElement="Flow_R_GwValid_R_GwSourceMerge"><di:waypoint x="1725" y="1285" /><di:waypoint x="1815" y="1285" /><bpmndi:BPMNLabel><dc:Bounds x="1731" y="1267" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwValid_R_GwRejectMerge_di" bpmnElement="Flow_R_GwValid_R_GwRejectMerge"><di:waypoint x="1700" y="1310" /><di:waypoint x="1700" y="1600" /><di:waypoint x="2960" y="1600" /><di:waypoint x="2960" y="1550" /><bpmndi:BPMNLabel><dc:Bounds x="1705" y="1314" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwSourceMerge_R_GwEmployee_di" bpmnElement="Flow_R_GwSourceMerge_R_GwEmployee"><di:waypoint x="1865" y="1285" /><di:waypoint x="1955" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwEmployee_R_GwEmployeeMerge_di" bpmnElement="Flow_R_GwEmployee_R_GwEmployeeMerge"><di:waypoint x="2005" y="1285" /><di:waypoint x="2235" y="1285" /><bpmndi:BPMNLabel><dc:Bounds x="2011" y="1267" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwEmployee_R_AssignEmployee_di" bpmnElement="Flow_R_GwEmployee_R_AssignEmployee"><di:waypoint x="1980" y="1310" /><di:waypoint x="1980" y="1405" /><di:waypoint x="2070" y="1405" /><bpmndi:BPMNLabel><dc:Bounds x="1985" y="1314" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_AssignEmployee_R_GwEmployeeMerge_di" bpmnElement="Flow_R_AssignEmployee_R_GwEmployeeMerge"><di:waypoint x="2170" y="1405" /><di:waypoint x="2260" y="1405" /><di:waypoint x="2260" y="1310" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwEmployeeMerge_R_CheckSlot_di" bpmnElement="Flow_R_GwEmployeeMerge_R_CheckSlot"><di:waypoint x="2285" y="1285" /><di:waypoint x="2350" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_CheckSlot_R_GwSlotFree_di" bpmnElement="Flow_R_CheckSlot_R_GwSlotFree"><di:waypoint x="2450" y="1285" /><di:waypoint x="2515" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwSlotFree_R_FindCustomer_di" bpmnElement="Flow_R_GwSlotFree_R_FindCustomer"><di:waypoint x="2565" y="1285" /><di:waypoint x="2630" y="1285" /><bpmndi:BPMNLabel><dc:Bounds x="2571" y="1267" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwSlotFree_R_GwRejectTaken_di" bpmnElement="Flow_R_GwSlotFree_R_GwRejectTaken"><di:waypoint x="2540" y="1310" /><di:waypoint x="2540" y="1404" /><bpmndi:BPMNLabel><dc:Bounds x="2545" y="1314" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwRejectTaken_R_RejectTaken_di" bpmnElement="Flow_R_GwRejectTaken_R_RejectTaken"><di:waypoint x="2540" y="1454" /><di:waypoint x="2540" y="1485" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_RejectTaken_R_GwSourceReject_di" bpmnElement="Flow_R_RejectTaken_R_GwSourceReject"><di:waypoint x="2590" y="1525" /><di:waypoint x="2655" y="1525" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwSourceReject_R_GwRejectMerge_di" bpmnElement="Flow_R_GwSourceReject_R_GwRejectMerge"><di:waypoint x="2705" y="1525" /><di:waypoint x="2935" y="1525" /><bpmndi:BPMNLabel><dc:Bounds x="2711" y="1507" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwSourceReject_S_GwRetry_di" bpmnElement="Flow_R_GwSourceReject_S_GwRetry"><di:waypoint x="2680" y="1550" /><di:waypoint x="2680" y="1630" /><di:waypoint x="860" y="1630" /><di:waypoint x="860" y="920" /><bpmndi:BPMNLabel><dc:Bounds x="2685" y="1554" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_FindCustomer_R_SaveBooking_di" bpmnElement="Flow_R_FindCustomer_R_SaveBooking"><di:waypoint x="2730" y="1285" /><di:waypoint x="2770" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_SaveBooking_R_GwBookedSource_di" bpmnElement="Flow_R_SaveBooking_R_GwBookedSource"><di:waypoint x="2870" y="1285" /><di:waypoint x="2935" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_BCollision_R_GwRejectTaken_di" bpmnElement="Flow_R_BCollision_R_GwRejectTaken"><di:waypoint x="2795" y="1343" /><di:waypoint x="2795" y="1429" /><di:waypoint x="2565" y="1429" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwBookedSource_R_ShowConfirm_di" bpmnElement="Flow_R_GwBookedSource_R_ShowConfirm"><di:waypoint x="2985" y="1285" /><di:waypoint x="3190" y="1285" /><bpmndi:BPMNLabel><dc:Bounds x="2991" y="1267" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwBookedSource_S_TellBooked_di" bpmnElement="Flow_R_GwBookedSource_S_TellBooked"><di:waypoint x="2960" y="1260" /><di:waypoint x="2960" y="895" /><di:waypoint x="3050" y="895" /><bpmndi:BPMNLabel><dc:Bounds x="2965" y="1242" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_ShowConfirm_S_GwBooked_di" bpmnElement="Flow_R_ShowConfirm_S_GwBooked"><di:waypoint x="3290" y="1285" /><di:waypoint x="3520" y="1285" /><di:waypoint x="3520" y="1040" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_GwRejectMerge_R_ShowReject_di" bpmnElement="Flow_R_GwRejectMerge_R_ShowReject"><di:waypoint x="2985" y="1525" /><di:waypoint x="3330" y="1525" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_ShowReject_R_EndRejected_di" bpmnElement="Flow_R_ShowReject_R_EndRejected"><di:waypoint x="3430" y="1525" /><di:waypoint x="3502" y="1525" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_Start_R_C_CheckAccess_di" bpmnElement="Flow_R_C_Start_R_C_CheckAccess"><di:waypoint x="4378" y="1405" /><di:waypoint x="4450" y="1405" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_CheckAccess_R_C_GwAccess_di" bpmnElement="Flow_R_C_CheckAccess_R_C_GwAccess"><di:waypoint x="4550" y="1405" /><di:waypoint x="4615" y="1405" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_GwAccess_R_C_CheckState_di" bpmnElement="Flow_R_C_GwAccess_R_C_CheckState"><di:waypoint x="4665" y="1405" /><di:waypoint x="4730" y="1405" /><bpmndi:BPMNLabel><dc:Bounds x="4671" y="1387" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_GwAccess_R_C_EndNoAccess_di" bpmnElement="Flow_R_C_GwAccess_R_C_EndNoAccess"><di:waypoint x="4640" y="1430" /><di:waypoint x="4640" y="1507" /><bpmndi:BPMNLabel><dc:Bounds x="4645" y="1434" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_CheckState_R_C_GwState_di" bpmnElement="Flow_R_C_CheckState_R_C_GwState"><di:waypoint x="4830" y="1405" /><di:waypoint x="4895" y="1405" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_GwState_R_C_SetCancelled_di" bpmnElement="Flow_R_C_GwState_R_C_SetCancelled"><di:waypoint x="4945" y="1405" /><di:waypoint x="5010" y="1405" /><bpmndi:BPMNLabel><dc:Bounds x="4951" y="1387" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_GwState_R_C_EndInvalid_di" bpmnElement="Flow_R_C_GwState_R_C_EndInvalid"><di:waypoint x="4920" y="1430" /><di:waypoint x="4920" y="1507" /><bpmndi:BPMNLabel><dc:Bounds x="4925" y="1434" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_SetCancelled_R_C_StampTime_di" bpmnElement="Flow_R_C_SetCancelled_R_C_StampTime"><di:waypoint x="5110" y="1405" /><di:waypoint x="5150" y="1405" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_C_StampTime_R_C_End_di" bpmnElement="Flow_R_C_StampTime_R_C_End"><di:waypoint x="5250" y="1405" /><di:waypoint x="5322" y="1405" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_IntrospectStart_R_Introspect_di" bpmnElement="Flow_R_IntrospectStart_R_Introspect"><di:waypoint x="10538" y="1285" /><di:waypoint x="10610" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_Introspect_R_IntrospectReply_di" bpmnElement="Flow_R_Introspect_R_IntrospectReply"><di:waypoint x="10710" y="1285" /><di:waypoint x="10750" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_IntrospectReply_R_IntrospectEnd_di" bpmnElement="Flow_R_IntrospectReply_R_IntrospectEnd"><di:waypoint x="10850" y="1285" /><di:waypoint x="10922" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_ExportStart_R_CheckApiKey_di" bpmnElement="Flow_R_ExportStart_R_CheckApiKey"><di:waypoint x="11378" y="1285" /><di:waypoint x="11450" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_CheckApiKey_R_BuildExport_di" bpmnElement="Flow_R_CheckApiKey_R_BuildExport"><di:waypoint x="11550" y="1285" /><di:waypoint x="11590" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_BuildExport_R_SendExport_di" bpmnElement="Flow_R_BuildExport_R_SendExport"><di:waypoint x="11690" y="1285" /><di:waypoint x="11730" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_R_SendExport_R_ExportEnd_di" bpmnElement="Flow_R_SendExport_R_ExportEnd"><di:waypoint x="11830" y="1285" /><di:waypoint x="11902" y="1285" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_Start_M_AskIntrospect_di" bpmnElement="Flow_M_Start_M_AskIntrospect"><di:waypoint x="10398" y="1835" /><di:waypoint x="10470" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_AskIntrospect_M_ReceiveIntrospect_di" bpmnElement="Flow_M_AskIntrospect_M_ReceiveIntrospect"><di:waypoint x="10570" y="1835" /><di:waypoint x="10750" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_ReceiveIntrospect_M_GwAuth_di" bpmnElement="Flow_M_ReceiveIntrospect_M_GwAuth"><di:waypoint x="10850" y="1835" /><di:waypoint x="10915" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_GwAuth_M_Lock_di" bpmnElement="Flow_M_GwAuth_M_Lock"><di:waypoint x="10965" y="1835" /><di:waypoint x="11030" y="1835" /><bpmndi:BPMNLabel><dc:Bounds x="10971" y="1817" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_GwAuth_M_ErrMerge1_di" bpmnElement="Flow_M_GwAuth_M_ErrMerge1"><di:waypoint x="10940" y="1860" /><di:waypoint x="10940" y="2315" /><di:waypoint x="11195" y="2315" /><bpmndi:BPMNLabel><dc:Bounds x="10945" y="1864" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_Lock_M_GwRunning_di" bpmnElement="Flow_M_Lock_M_GwRunning"><di:waypoint x="11130" y="1835" /><di:waypoint x="11195" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_GwRunning_M_AskExport_di" bpmnElement="Flow_M_GwRunning_M_AskExport"><di:waypoint x="11245" y="1835" /><di:waypoint x="11310" y="1835" /><bpmndi:BPMNLabel><dc:Bounds x="11251" y="1817" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_GwRunning_M_ErrMerge1_di" bpmnElement="Flow_M_GwRunning_M_ErrMerge1"><di:waypoint x="11220" y="1860" /><di:waypoint x="11220" y="2290" /><bpmndi:BPMNLabel><dc:Bounds x="11225" y="1864" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_AskExport_M_ReceiveExport_di" bpmnElement="Flow_M_AskExport_M_ReceiveExport"><di:waypoint x="11410" y="1835" /><di:waypoint x="11730" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_ReceiveExport_M_SaveRaw_di" bpmnElement="Flow_M_ReceiveExport_M_SaveRaw"><di:waypoint x="11830" y="1835" /><di:waypoint x="11870" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_SaveRaw_M_Sub_Train_di" bpmnElement="Flow_M_SaveRaw_M_Sub_Train"><di:waypoint x="11970" y="1835" /><di:waypoint x="12012" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_Sub_Train_M_SendSummary_di" bpmnElement="Flow_M_Sub_Train_M_SendSummary"><di:waypoint x="14068" y="1835" /><di:waypoint x="14110" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_SendSummary_M_EndOk_di" bpmnElement="Flow_M_SendSummary_M_EndOk"><di:waypoint x="14210" y="1835" /><di:waypoint x="14422" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_ErrMerge1_M_ErrMerge2_di" bpmnElement="Flow_M_ErrMerge1_M_ErrMerge2"><di:waypoint x="11245" y="2315" /><di:waypoint x="12595" y="2315" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_BNoData_M_ErrMerge2_di" bpmnElement="Flow_M_BNoData_M_ErrMerge2"><di:waypoint x="12620" y="2283" /><di:waypoint x="12620" y="2290" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_ErrMerge2_M_SendError_di" bpmnElement="Flow_M_ErrMerge2_M_SendError"><di:waypoint x="12645" y="2315" /><di:waypoint x="14250" y="2315" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_SendError_M_EndError_di" bpmnElement="Flow_M_SendError_M_EndError"><di:waypoint x="14350" y="2315" /><di:waypoint x="14422" y="2315" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Start_M_T_Snapshots_di" bpmnElement="Flow_M_T_Start_M_T_Snapshots"><di:waypoint x="12078" y="1835" /><di:waypoint x="12150" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Snapshots_M_T_Features_di" bpmnElement="Flow_M_T_Snapshots_M_T_Features"><di:waypoint x="12250" y="1835" /><di:waypoint x="12290" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Features_M_T_Labels_di" bpmnElement="Flow_M_T_Features_M_T_Labels"><di:waypoint x="12390" y="1835" /><di:waypoint x="12430" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Labels_M_T_GwEnough_di" bpmnElement="Flow_M_T_Labels_M_T_GwEnough"><di:waypoint x="12530" y="1835" /><di:waypoint x="12595" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_GwEnough_M_T_Split_di" bpmnElement="Flow_M_T_GwEnough_M_T_Split"><di:waypoint x="12645" y="1835" /><di:waypoint x="12735" y="1835" /><bpmndi:BPMNLabel><dc:Bounds x="12651" y="1817" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_GwEnough_M_T_EndNoData_di" bpmnElement="Flow_M_T_GwEnough_M_T_EndNoData"><di:waypoint x="12620" y="1860" /><di:waypoint x="12620" y="1937" /><bpmndi:BPMNLabel><dc:Bounds x="12625" y="1864" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Split_M_T_LR_di" bpmnElement="Flow_M_T_Split_M_T_LR"><di:waypoint x="12785" y="1835" /><di:waypoint x="12850" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_LR_M_T_Join_di" bpmnElement="Flow_M_T_LR_M_T_Join"><di:waypoint x="12950" y="1835" /><di:waypoint x="13015" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Split_M_T_RF_di" bpmnElement="Flow_M_T_Split_M_T_RF"><di:waypoint x="12760" y="1860" /><di:waypoint x="12760" y="1955" /><di:waypoint x="12850" y="1955" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_RF_M_T_Join_di" bpmnElement="Flow_M_T_RF_M_T_Join"><di:waypoint x="12950" y="1955" /><di:waypoint x="13040" y="1955" /><di:waypoint x="13040" y="1860" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Split_M_T_HGB_di" bpmnElement="Flow_M_T_Split_M_T_HGB"><di:waypoint x="12760" y="1860" /><di:waypoint x="12760" y="2075" /><di:waypoint x="12850" y="2075" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_HGB_M_T_Join_di" bpmnElement="Flow_M_T_HGB_M_T_Join"><di:waypoint x="12950" y="2075" /><di:waypoint x="13040" y="2075" /><di:waypoint x="13040" y="1860" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Split_M_T_Baseline_di" bpmnElement="Flow_M_T_Split_M_T_Baseline"><di:waypoint x="12760" y="1860" /><di:waypoint x="12760" y="2195" /><di:waypoint x="12850" y="2195" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Baseline_M_T_Join_di" bpmnElement="Flow_M_T_Baseline_M_T_Join"><di:waypoint x="12950" y="2195" /><di:waypoint x="13040" y="2195" /><di:waypoint x="13040" y="1860" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Join_M_T_Select_di" bpmnElement="Flow_M_T_Join_M_T_Select"><di:waypoint x="13065" y="1835" /><di:waypoint x="13130" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Select_M_T_Importance_di" bpmnElement="Flow_M_T_Select_M_T_Importance"><di:waypoint x="13230" y="1835" /><di:waypoint x="13270" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Importance_M_T_Retrain_di" bpmnElement="Flow_M_T_Importance_M_T_Retrain"><di:waypoint x="13370" y="1835" /><di:waypoint x="13410" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Retrain_M_T_SaveModel_di" bpmnElement="Flow_M_T_Retrain_M_T_SaveModel"><di:waypoint x="13510" y="1835" /><di:waypoint x="13550" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_SaveModel_M_T_Predict_di" bpmnElement="Flow_M_T_SaveModel_M_T_Predict"><di:waypoint x="13650" y="1835" /><di:waypoint x="13690" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Predict_M_T_Explain_di" bpmnElement="Flow_M_T_Predict_M_T_Explain"><di:waypoint x="13790" y="1835" /><di:waypoint x="13830" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M_T_Explain_M_T_End_di" bpmnElement="Flow_M_T_Explain_M_T_End"><di:waypoint x="13930" y="1835" /><di:waypoint x="14002" y="1835" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_C_Call_S_PhoneStart_di" bpmnElement="Message_C_Call_S_PhoneStart"><di:waypoint x="580" y="355" /><di:waypoint x="580" y="877" /><bpmndi:BPMNLabel><dc:Bounds x="585" y="359" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_C_Submit_R_OnlineStart_di" bpmnElement="Message_C_Submit_R_OnlineStart"><di:waypoint x="1420" y="115" /><di:waypoint x="1420" y="1267" /><bpmndi:BPMNLabel><dc:Bounds x="1425" y="119" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_R_ShowConfirm_C_ReceiveResult_di" bpmnElement="Message_R_ShowConfirm_C_ReceiveResult"><di:waypoint x="3240" y="1245" /><di:waypoint x="3240" y="115" /><bpmndi:BPMNLabel><dc:Bounds x="3245" y="1213" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_R_ShowReject_C_ReceiveResult_di" bpmnElement="Message_R_ShowReject_C_ReceiveResult"><di:waypoint x="3380" y="1485" /><di:waypoint x="3380" y="410" /><di:waypoint x="3265" y="410" /><di:waypoint x="3265" y="115" /><bpmndi:BPMNLabel><dc:Bounds x="3385" y="1453" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_S_TellBooked_C_ReceivePhoneConfirm_di" bpmnElement="Message_S_TellBooked_C_ReceivePhoneConfirm"><di:waypoint x="3100" y="855" /><di:waypoint x="3100" y="355" /><bpmndi:BPMNLabel><dc:Bounds x="3105" y="837" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_C_RequestReschedule_S_MsgReschedule_di" bpmnElement="Message_C_RequestReschedule_S_MsgReschedule"><di:waypoint x="3940" y="235" /><di:waypoint x="3940" y="997" /><bpmndi:BPMNLabel><dc:Bounds x="3945" y="239" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_S_TellNewTime_C_ReceiveNewTime_di" bpmnElement="Message_S_TellNewTime_C_ReceiveNewTime"><di:waypoint x="4780" y="975" /><di:waypoint x="4780" y="235" /><bpmndi:BPMNLabel><dc:Bounds x="4785" y="957" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_C_RequestCancel_S_MsgCancel_di" bpmnElement="Message_C_RequestCancel_S_MsgCancel"><di:waypoint x="4080" y="355" /><di:waypoint x="4080" y="1117" /><bpmndi:BPMNLabel><dc:Bounds x="4085" y="359" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_S_ConfirmCancel_C_ReceiveCancelAnswer_di" bpmnElement="Message_S_ConfirmCancel_C_ReceiveCancelAnswer"><di:waypoint x="5480" y="1095" /><di:waypoint x="5480" y="355" /><bpmndi:BPMNLabel><dc:Bounds x="5485" y="1063" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_S_ExplainCancel_C_ReceiveCancelAnswer_di" bpmnElement="Message_S_ExplainCancel_C_ReceiveCancelAnswer"><di:waypoint x="5760" y="975" /><di:waypoint x="5760" y="410" /><di:waypoint x="5505" y="410" /><di:waypoint x="5505" y="355" /><bpmndi:BPMNLabel><dc:Bounds x="5765" y="943" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_C_Arrive_S_MsgArrived_di" bpmnElement="Message_C_Arrive_S_MsgArrived"><di:waypoint x="6180" y="115" /><di:waypoint x="6180" y="877" /><bpmndi:BPMNLabel><dc:Bounds x="6185" y="119" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_C_Pay_S_ReceivePayment_di" bpmnElement="Message_C_Pay_S_ReceivePayment"><di:waypoint x="8980" y="115" /><di:waypoint x="8980" y="855" /><bpmndi:BPMNLabel><dc:Bounds x="8985" y="119" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_A_RunPipeline_M_Start_di" bpmnElement="Message_A_RunPipeline_M_Start"><di:waypoint x="10380" y="545" /><di:waypoint x="10380" y="1817" /><bpmndi:BPMNLabel><dc:Bounds x="10385" y="549" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_M_AskIntrospect_R_IntrospectStart_di" bpmnElement="Message_M_AskIntrospect_R_IntrospectStart"><di:waypoint x="10520" y="1795" /><di:waypoint x="10520" y="1303" /><bpmndi:BPMNLabel><dc:Bounds x="10525" y="1763" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_R_IntrospectReply_M_ReceiveIntrospect_di" bpmnElement="Message_R_IntrospectReply_M_ReceiveIntrospect"><di:waypoint x="10800" y="1325" /><di:waypoint x="10800" y="1795" /><bpmndi:BPMNLabel><dc:Bounds x="10805" y="1329" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_M_AskExport_R_ExportStart_di" bpmnElement="Message_M_AskExport_R_ExportStart"><di:waypoint x="11360" y="1795" /><di:waypoint x="11360" y="1303" /><bpmndi:BPMNLabel><dc:Bounds x="11365" y="1763" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_R_SendExport_M_ReceiveExport_di" bpmnElement="Message_R_SendExport_M_ReceiveExport"><di:waypoint x="11780" y="1325" /><di:waypoint x="11780" y="1795" /><bpmndi:BPMNLabel><dc:Bounds x="11785" y="1329" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_M_SendSummary_A_ReceiveRun_di" bpmnElement="Message_M_SendSummary_A_ReceiveRun"><di:waypoint x="14160" y="1795" /><di:waypoint x="14160" y="545" /><bpmndi:BPMNLabel><dc:Bounds x="14165" y="1763" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_M_SendError_A_ReceiveRun_di" bpmnElement="Message_M_SendError_A_ReceiveRun"><di:waypoint x="14300" y="2275" /><di:waypoint x="14300" y="565" /><di:waypoint x="14185" y="565" /><di:waypoint x="14185" y="545" /><bpmndi:BPMNLabel><dc:Bounds x="14305" y="2257" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_A_R_Contact_C_RetentionStart_di" bpmnElement="Message_A_R_Contact_C_RetentionStart"><di:waypoint x="15280" y="465" /><di:waypoint x="15280" y="93" /><bpmndi:BPMNLabel><dc:Bounds x="15285" y="433" width="100" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Message_C_AgreeTime_A_R_Book_di" bpmnElement="Message_C_AgreeTime_A_R_Book"><di:waypoint x="15700" y="235" /><di:waypoint x="15700" y="585" /><bpmndi:BPMNLabel><dc:Bounds x="15705" y="239" width="100" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataIn_R_BuildExport_di" bpmnElement="DataIn_R_BuildExport"><di:waypoint x="11640" y="1380" /><di:waypoint x="11640" y="1325" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataOut_M_SaveRaw_di" bpmnElement="DataOut_M_SaveRaw"><di:waypoint x="11920" y="1875" /><di:waypoint x="11920" y="1990" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
