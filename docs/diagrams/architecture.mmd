@@ -1,0 +1,19 @@
+flowchart TB
+    browser["Prehliadač<br/>React SPA"]
+
+    subgraph app_c["Kontajner app"]
+        main["Hlavný backend<br/>ASP.NET Core :8080<br/>REST API + statický frontend"]
+    end
+
+    subgraph ml_c["Kontajner ml"]
+        ml["ML backend<br/>Python FastAPI :8000<br/>scikit-learn"]
+    end
+
+    dbmain[("db-main<br/>PostgreSQL 17<br/>salon_main")]
+    dbml[("db-ml<br/>PostgreSQL 17<br/>salon_ml")]
+
+    browser -- "/api/* (cookie salon_sid)" --> main
+    browser -- "/ml/* (CORS, cookie salon_sid)" --> ml
+    ml -- "interné API, X-Internal-Api-Key<br/>introspect session, export dát" --> main
+    main --> dbmain
+    ml --> dbml

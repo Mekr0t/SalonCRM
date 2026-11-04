@@ -110,6 +110,11 @@ npm run build && npm run lint && npm test  # testy cez vstavaný Node.js runner,
 # Celý systém v Dockeri → http://localhost:8080
 docker compose up --build
 docker compose down -v        # zmaže aj dáta
+
+# Semestrálna práca (LaTeX) → docs/latex/dist/thesis.pdf (PDF je commitnuté)
+docker run --rm -u $(id -u):$(id -g) -v "$PWD/docs":/data minlag/mermaid-cli:11.4.2 \
+  -i diagrams/architecture.mmd -o latex/figures/architecture.pdf --pdfFit   # to isté pre deployment.mmd
+cd docs/latex && docker run --rm -u $(id -u):$(id -g) -v "$PWD":/thesis kpituke/latex:2025.09.4 make thesis
 ```
 
 ## Konvencie

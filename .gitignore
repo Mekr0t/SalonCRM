@@ -34,6 +34,7 @@ backend-ml/models/
 # Node
 node_modules/
 dist/
+!docs/latex/dist/
 *.tsbuildinfo
 npm-debug.log*
 
