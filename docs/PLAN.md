@@ -141,13 +141,13 @@ SPEC: §11
 
 ## Fáza 10 — BPMN
 
-- [ ] `docs/bpmn/proces.md` — textový návrh procesu:
-  - bazén **Zákazník** a bazén **Kozmetický salón** s dráhami Admin (recepcia), Kozmetička, CRM systém, ML služba
-  - číslované činnosti, cieľ **≥ 65** (rezerva nad 60), tabuľka počtov po dráhach
-  - podproces „Vykonanie ošetrenia“ (konzultácia, kontrola kontraindikácií, diagnostika pleti, …), ideálne aj „Analýza rizika odchodu“
-  - exkluzívne aj paralelné brány, správy medzi bazénmi, štartovacie, koncové a časové udalosti
+- [x] `docs/bpmn/proces.md` — textový návrh procesu:
+  - bazén **Zákazník**, bazén **Kozmetický salón** s dráhami Admin, Pracovník, CRM systém a samostatný bazén **ML služba** (vlastná DB, komunikácia iba cez HTTP → toky správ)
+  - číslované činnosti, cieľ **≥ 65** (rezerva nad 60), tabuľka počtov po dráhach — 94 spolu, 65 mimo podprocesov
+  - podprocesy „Vykonanie ošetrenia“, „Tréning modelu a predikcia rizika“, „Zrušenie termínu“, „Retenčný kontakt“ (multi-instance)
+  - exkluzívne, paralelné aj udalostné brány, správy medzi bazénmi, štartovacie, koncové, časové a chybové udalosti
   - proces zodpovedá tomu, čo systém reálne robí: rezervácia → potvrdenie → ošetrenie → platba → evidencia → periodická analýza rizika → retenčný kontakt
-- [ ] Voliteľne `docs/bpmn/salon-crm.bpmn` (BPMN 2.0 XML) ako východisko; rozloženie dorovnať ručne v Camunda Modeleri
+- [x] `docs/bpmn/salon-crm.bpmn` (BPMN 2.0 XML, validné voči OMG XSD); rozloženie podľa potreby dorovnať ručne v Camunda Modeleri
 
 **Hotovo, keď:** súbor sa otvorí v Camunda Modeleri bez chýb a počty spĺňajú zadanie. Over si u vyučujúceho, či sa činnosti vnútri podprocesu rátajú do 60.
 
