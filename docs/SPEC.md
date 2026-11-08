@@ -510,6 +510,7 @@ V compose sa premenné mapujú na .NET konfiguráciu (`ConnectionStrings__Main`,
 ### 11.1 Produkčné nasadenie — Azure
 
 - Cieľ: **jedna Linux VM v Azure** (predplatné Azure for Students), na nej ten istý `docker-compose.yml` ako lokálne. Žiadne spravované Azure služby (DB ostávajú kontajnery).
+- Realizácia: skript `deploy/azure/create-vm.sh` (Azure CLI) + `deploy/azure/cloud-init.yml`. Región `denmarkeast` (Azure for Students povoľuje iba niekoľko EÚ regiónov a B-séria bola dostupná len tu), veľkosť `Standard_B2als_v2` (2 vCPU, 4 GB) + 2 GB swap, Ubuntu 24.04, hostname `saloncrm-tuke.denmarkeast.cloudapp.azure.com`.
 - VM má DNS label (`<nazov>.<region>.cloudapp.azure.com`); frontend aj ML sú na **rovnakom hostname** (rôzne porty), takže cookie `salon_sid` so `SameSite=Lax` funguje rovnako ako na localhoste.
 - Na VM sa mení iba `.env`: `VITE_ML_API_URL` a `CORS_ORIGINS` ukazujú na hostname VM, nové heslá a `INTERNAL_API_KEY`. Porty DB (5432/5433) sa von **nepublikujú** (NSG povolí iba 22, 8080, 8000).
 - HTTPS zatiaľ nie; vyžaduje reverse proxy ako ďalší kontajner (vyučujúci potvrdil, že viac ako 4 kontajnery je OK) — rozhodne sa vo Fáze 9.

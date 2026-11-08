@@ -133,7 +133,7 @@ SPEC: §11
 - [x] Dockerfile pre `app` (multi-stage: frontend build → dotnet publish → runtime s `wwwroot`), Dockerfile pre `ml`, SPA fallback mimo `/api`
 - [x] Kompletný `docker-compose.yml` (4 kontajnery, healthchecky, `depends_on`, volumes, env z `.env`)
 - [ ] README: spustenie jedným príkazom, demo účty, porty
-- [ ] Azure VM (§11.1): vytvorenie VM + DNS label + NSG, inštalácia Dockeru, `.env` pre produkciu, nasadenie, návod v README
+- [x] Azure VM (§11.1): vytvorenie VM + DNS label + NSG, inštalácia Dockeru, `.env` pre produkciu, nasadenie, návod v README — `deploy/azure/create-vm.sh`, http://saloncrm-tuke.denmarkeast.cloudapp.azure.com:8080
 - [ ] Ak pribudne reverse proxy: `ForwardedHeaders` s dôveryhodnou proxy, inak rate limit prihlásenia zdieľajú všetci klienti (vidí iba IP proxy)
 - [ ] Rozhodnúť HTTPS (reverse proxy ako ďalší kontajner — vyučujúci potvrdil, že viac ako 4 kontajnery je OK) a ručné vs. automatické nasadenie (CD)
 

@@ -1,0 +1,13 @@
+#cloud-config
+# Ubuntu 24.04: install Docker Engine + Compose plugin and clone the repo.
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker azureuser
+  - systemctl enable --now docker
+  - git clone https://github.com/Mekr0t/SalonCRM.git /home/azureuser/SalonCRM
+  - chown -R azureuser:azureuser /home/azureuser/SalonCRM
