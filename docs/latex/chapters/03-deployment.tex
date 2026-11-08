@@ -56,7 +56,7 @@ Skript vytvorí v skupine prostriedkov \texttt{saloncrm-rg} tieto prostriedky (t
   \end{tabular}
 \end{table}
 
-Predplatné Azure for Students povoľuje nasadenie iba do niekoľkých európskych regiónov a malé veľkosti VM série B boli z nich dostupné len v regióne Denmark East, preto beží VM tam. Veľkosť so 4~GB pamäte (doplnená o 2~GB swap) stačí aj na zostavenie Docker obrazov priamo na VM. Pri prvom štarte VM nástroj cloud-init (\nolinkurl{deploy/azure/cloud-init.yml}) nainštaluje Docker s pluginom Compose a naklonuje repozitár.
+Predplatné Azure for Students povoľuje nasadenie iba do niekoľkých európskych regiónov a malé veľkosti VM série B boli z nich dostupné len v regióne Denmark East, preto beží VM tam. Veľkosť so 4~GB pamäte (doplnená o 2~GB swap) stačí aj na zostavenie Docker obrazov priamo na VM. Pri prvom štarte VM nástroj cloud-init (\nolinkurl{deploy/azure/cloud-init.yml}) nainštaluje Docker s pluginom Compose, pridá používateľa \texttt{azureuser} do skupiny \texttt{docker} a naklonuje repozitár z GitHubu do jeho domovského adresára. Swap sa na VM nastavil ručne.
 
 \subsection*{Sieť a bezpečnosť}
 
@@ -76,6 +76,17 @@ Na VM sa mení iba súbor \texttt{.env}, ktorý nie je v repozitári. Obsahuje n
   \item spustenie \texttt{docker compose up -d -{}-build}; migrácie databáz a ukážkové dáta sa aplikujú automaticky pri štarte kontajnerov.
 \end{enumerate}
 
-Aktualizácia na novú verziu je zatiaľ ručná: \texttt{git pull} a \texttt{docker compose up -d -{}-build} na VM. Kontinuálna integrácia (GitHub Actions) pri každej zmene zostaví a otestuje všetky časti systému a dá sa rozšíriť o automatické nasadenie cez SSH po úspešných testoch. Keď systém netreba, VM sa dá zastaviť príkazom \texttt{az vm deallocate}, aby nespotrebúvala kredit.
+Nasadený systém je dostupný na adresách:
+
+\begin{itemize}
+  \item frontend a hlavné API: \nolinkurl{http://saloncrm-tuke.denmarkeast.cloudapp.azure.com:8080},
+  \item ML API: \nolinkurl{http://saloncrm-tuke.denmarkeast.cloudapp.azure.com:8000/ml/health}.
+\end{itemize}
+
+Po nasadení sme systém overili zvonku, z počítača mimo Azure: načítanie frontendu, prihlásenie administrátora, spustenie ML pipeline z dashboardu (čím sa overilo posielanie cookie \texttt{salon\_sid} na port 8000 aj nastavenie CORS) a nedostupnosť portov databáz 5432 a 5433.
+
+Aktualizácia na novú verziu je zatiaľ ručná: \texttt{git pull} a \texttt{docker compose up -d -{}-build} na VM. Kontinuálna integrácia (GitHub Actions) pri každej zmene zostaví a otestuje všetky časti systému a dá sa rozšíriť o automatické nasadenie cez SSH po úspešných testoch.
+
+Keď systém netreba, VM sa zastaví príkazom \texttt{az vm deallocate -g saloncrm-rg -n saloncrm-vm}. Za výpočtový výkon sa potom neplatí, disk aj dáta zostávajú a príkaz \texttt{az vm start} VM znova spustí. Celú infraštruktúru odstráni príkaz \texttt{az group delete -n saloncrm-rg}, ktorý zmaže skupinu prostriedkov so všetkým obsahom.
 
 Produkcia zatiaľ beží cez HTTP bez TLS, preto má cookie príznak \texttt{Secure} vypnutý. HTTPS by sa doplnilo reverzným proxy serverom (napr. Caddy) ako ďalším kontajnerom, ktorý by automaticky získal certifikát Let's Encrypt pre DNS meno VM.
