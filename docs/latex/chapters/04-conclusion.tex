@@ -12,9 +12,9 @@ Systém spĺňa technické požiadavky zadania:
   \item frontend v Reacte, ktorý volá oba backendy a na viacerých obrazovkách kombinuje ich dáta,
   \item dve samostatné databázy PostgreSQL, ku ktorým pristupuje vždy iba „ich“ backend,
   \item predikcia odchodu zákazníka pomocou strojového učenia s porovnaním viacerých modelov a vysvetlením výsledku,
-  \item kontajnerizácia: lokálne Docker Compose so štyrmi kontajnermi, v produkcii Azure App Service a Azure Database for PostgreSQL.
+  \item kontajnerizácia: lokálne Docker Compose so štyrmi kontajnermi, rovnaká konfigurácia v produkcii na virtuálnom stroji v Azure.
 \end{itemize}
 
 Prínosom pre salón je predovšetkým ML časť: personál nemusí ručne sledovať, kto prestal chodiť, ale dostane zoradený zoznam rizikových zákazníkov aj s dôvodom a môže ich cielene osloviť. Uskutočnené kontakty sa evidujú ako retenčné akcie.
 
-Systém má aj vedomé obmedzenia. E-mail zákazníka sa pri rezervácii neoveruje, model je natrénovaný na syntetických dátach a produkčné nasadenie v Azure si vyžaduje vlastnú doménu. Na projekt možno nadviazať e-mailovými pripomienkami termínov, zrušením rezervácie zákazníkom cez odkaz, hodnotením návštev (ktoré by mohlo slúžiť aj ako ďalší príznak modelu), a automatickým nasadzovaním po úspešnom prechode CI.
+Systém má aj vedomé obmedzenia. E-mail zákazníka sa pri rezervácii neoveruje, model je natrénovaný na syntetických dátach a produkčné nasadenie v Azure zatiaľ beží cez HTTP bez TLS. Na projekt možno nadviazať e-mailovými pripomienkami termínov, zrušením rezervácie zákazníkom cez odkaz, hodnotením návštev (ktoré by mohlo slúžiť aj ako ďalší príznak modelu), HTTPS cez reverzný proxy server a automatickým nasadzovaním po úspešnom prechode CI.

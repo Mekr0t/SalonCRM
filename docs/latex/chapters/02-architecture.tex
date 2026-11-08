@@ -35,7 +35,7 @@ Export obsahuje iba pseudonymné identifikátory a údaje o termínoch (čas, st
 
 Prihlásenie zabezpečuje hlavný backend. Po overení hesla vygeneruje náhodný token, ktorý odošle prehliadaču v cookie \texttt{salon\_sid} s príznakmi \texttt{HttpOnly} a \texttt{SameSite=Lax}. V tabuľke \texttt{sessions} sa uloží iba hash tokenu. Session platí najviac 12 hodín a po dvoch hodinách nečinnosti vyprší. Odhlásenie session zneplatní a administrátor vidí zoznam aktívnych sessions a môže ich rušiť.
 
-ML backend vlastné prihlasovanie nemá. Pri chránenom požiadavku prečíta tú istú cookie a overí ju cez introspekciu v hlavnom backende. Výsledok si na krátky čas uloží do cache. Cookie sa na ML backend dostane vďaka tomu, že oba backendy patria k rovnakému webu (\emph{site}): lokálne bežia na rovnakom hostiteľovi s iným portom, v produkcii na subdoménach jednej domény. ML backend povoľuje CORS s prihlasovacími údajmi iba pre konkrétne originy.
+ML backend vlastné prihlasovanie nemá. Pri chránenom požiadavku prečíta tú istú cookie a overí ju cez introspekciu v hlavnom backende. Výsledok si na krátky čas uloží do cache. Cookie sa na ML backend dostane vďaka tomu, že oba backendy patria k rovnakému webu (\emph{site}): lokálne aj v produkcii na Azure bežia na rovnakom hostiteľovi, iba s iným portom. ML backend povoľuje CORS s prihlasovacími údajmi iba pre konkrétne originy.
 
 Autorizácia je explicitná na každom endpointe. Obmedzenie pracovníka iba na jeho vlastné termíny a zákazníkov je súčasťou databázového dotazu, nie iba používateľského rozhrania. Záznam, ktorý pracovníkovi nepatrí, sa správa, akoby neexistoval (HTTP 404).
 
