@@ -1,0 +1,64 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Zadanie a analýza}\label{ch:analysis}
+
+\section{Zadanie}
+
+Cieľom projektu je vytvoriť vnútropodnikový informačný systém pre kozmetický salón. Systém má podobu CRM (\emph{Customer Relationship Management}) a slúži na správu zákazníkov, objednávok (termínov) a platieb. Okrem bežnej evidencie má salónu pomôcť udržať si zákazníkov: pomocou strojového učenia predikuje, ktorí zákazníci pravdepodobne prestanú chodiť, aby ich mohol personál včas osloviť.
+
+Zo zadania predmetu vyplývajú tieto technické požiadavky:
+
+\begin{itemize}
+  \item podnikový informačný systém postavený na prepojených aplikačných webových službách,
+  \item prihlasovanie a odhlasovanie, aspoň dve používateľské roly a práca so sessions,
+  \item hlavný backend, ktorý obsluhuje aspoň dve obrazovky,
+  \item druhý backend v inom programovacom jazyku (nemusí mať vlastné používateľské rozhranie),
+  \item frontend, ktorý spája dáta z oboch backendov,
+  \item dve samostatné SQL databázy,
+  \item komponent strojového učenia,
+  \item procesný model v notácii BPMN,
+  \item nasadenie pomocou kontajnerov.
+\end{itemize}
+
+\section{Rozdelenie úloh v tíme}
+
+Projekt riešil štvorčlenný tím. Rozdelenie rolí uvádza tabuľka~\ref{tab:team}.
+
+\begin{table}[ht]
+  \centering
+  \caption{Roly členov tímu}\label{tab:team}
+  \begin{tabular}{@{}llp{.45\textwidth}@{}}
+    \toprule
+    Rola & Člen tímu & Zodpovednosť \\
+    \midrule
+    AI expert & Roman Šafranko & ML služba, príznaky, tréning a vyhodnotenie modelu \\
+    Doménový expert & Martin Saxa & požiadavky salónu, analýza domény, procesy (BPMN) \\
+    Softvérový architekt & Samuel Šarkan & architektúra, rozhrania služieb, nasadenie \\
+    Softvérový inžinier & Jakub Spišák & implementácia backendu a frontendu \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Analýza domény}
+
+Kozmetický salón ponúka služby rozdelené do kategórií (ošetrenie pleti, nechty, obočie a mihalnice, depilácia, masáže, líčenie). Každá služba má dĺžku trvania a cenu a vykonávajú ju iba niektorí pracovníci. Salón má pevné otváracie hodiny a termíny sa plánujú v 15-minútovej mriežke.
+
+V systéme vystupujú tri skupiny používateľov:
+
+\begin{description}
+  \item[Zákazník] nemá účet. Rezervuje si termín cez verejný formulár: vyberie službu, pracovníka (alebo „ktokoľvek“), voľný čas a zadá kontaktné údaje. Identifikuje sa e-mailom; ak zákazník s rovnakým e-mailom už existuje, termín sa priradí k nemu.
+  \item[Pracovník (rola \texttt{User})] napríklad kozmetička. Vidí svoj kalendár, spravuje iba svoje termíny a iba zákazníkov, ktorých obsluhoval. Termín môže dokončiť (a zaevidovať platbu), zrušiť, označiť ako nedostavenie sa alebo preplánovať. Telefonické objednávky zapisuje za zákazníka.
+  \item[Administrátor (rola \texttt{Admin})] vidí všetky dáta, spravuje používateľov, služby a cenník, sleduje štatistiky (tržby, návštevy, vyťaženosť pracovníkov) a pracuje s výsledkami predikcie odchodu zákazníkov.
+\end{description}
+
+Životný cyklus termínu je jednoduchý stavový automat. Nový termín je v stave \emph{naplánovaný}. Odtiaľ môže prejsť do stavu \emph{dokončený} (spolu so zápisom platby), \emph{zrušený} alebo \emph{neprišiel}. Všetky tri sú konečné. Dôležitým obchodným pravidlom je, že pracovník nesmie mať dva prekrývajúce sa termíny. Kontrola iba v aplikácii nestačí, pretože dvaja zákazníci môžu ten istý čas rezervovať súčasne. Preto prekrývaniu bráni aj obmedzenie priamo v databáze.
+
+\section{Predikcia odchodu zákazníka}
+
+Pre salón je lacnejšie udržať si existujúceho zákazníka ako získať nového. Systém preto pre každého zákazníka s aspoň dvoma dokončenými návštevami odhaduje pravdepodobnosť, že v nasledujúcich 90 dňoch nepríde (tzv. \emph{churn}). Výsledok má podobu pravdepodobnosti, úrovne rizika (nízke, stredné, vysoké) a čitateľného zdôvodnenia, napríklad: „Posledná návšteva pred 64 dňami, obvykle chodí každých 21 dní. Nemá naplánovaný ďalší termín.“
+
+Model sa učí z histórie termínov. Príznaky opisujú správanie zákazníka k zvolenému dátumu: počet dní od poslednej návštevy, priemerný interval medzi návštevami a ich pomer, počet návštev za posledných 90 a 180 dní, útrata, podiel zrušených termínov, existencia budúceho termínu a najčastejšia kategória služby. Pri ich výpočte sa používajú iba údaje, ktoré boli k danému dátumu známe, aby model „nevidel do budúcnosti“ (\emph{data leakage}).
+
+Trénuje sa niekoľko klasifikátorov z knižnice scikit-learn (logistická regresia, náhodný les a gradient boosting). Vyhodnocujú sa na časovo oddelenej validačnej množine a porovnávajú s jednoduchým pravidlom (zákazník nechodí viac ako dvojnásobok svojho obvyklého intervalu). Vyberie sa model s najvyššou hodnotou ROC-AUC. Na základe predikcie môže administrátor zaznamenať \emph{retenčnú akciu}, teda kontakt so zákazníkom telefonicky, e-mailom alebo osobne.
+
+Keďže salón nemá reálne historické dáta, systém pracuje so syntetickými dátami. Tie modelujú rôzne typy zákazníkov (verní, nepravidelní, odchádzajúci, jednorazoví) aj so zámerným šumom. Dosiahnuté metriky preto preukazujú funkčnosť celého postupu, nie presnosť na reálnych dátach.

@@ -1,0 +1,92 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Nasadenie}\label{ch:deployment}
+
+\section{Kontajnery}
+
+Celý systém je zabalený do kontajnerov. Na lokálny vývoj a demonštráciu sa spúšťa pomocou Docker Compose. Základ tvoria štyri kontajnery (tabuľka~\ref{tab:containers}).
+
+\begin{table}[ht]
+  \centering
+  \caption{Kontajnery systému}\label{tab:containers}
+  \begin{tabular}{@{}llp{.5\textwidth}@{}}
+    \toprule
+    Kontajner & Port & Obsah \\
+    \midrule
+    \texttt{db-main} & 5432 & PostgreSQL 17, databáza \texttt{salon\_main} \\
+    \texttt{db-ml}   & 5433 & PostgreSQL 17, databáza \texttt{salon\_ml} \\
+    \texttt{app}     & 8080 & ASP.NET Core API spolu so zostaveným frontendom \\
+    \texttt{ml}      & 8000 & FastAPI a ML pipeline \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Obraz \texttt{app} sa zostavuje viacstupňovo: najprv sa v Node.js zostaví frontend, potom sa v .NET SDK skompiluje backend a nakoniec sa oba výstupy skopírujú do runtime obrazu ASP.NET Core. Hlavný backend tak servíruje statické súbory frontendu a všetky cesty mimo \texttt{/api} presmeruje na \texttt{index.html}, kým neznáma API cesta vráti chybu 404 vo formáte JSON. Pri štarte kontajnera sa automaticky aplikujú databázové migrácie a naplnia sa ukážkové dáta. Kontajner \texttt{ml} pri štarte aplikuje migrácie nástrojom Alembic a spustí server uvicorn.
+
+Databázy majú zdravotné kontroly (\texttt{pg\_isready}) a backendy štartujú až po tom, čo je ich databáza pripravená. Dáta oboch databáz a natrénované modely sú uložené v pomenovaných zväzkoch, takže prežijú reštart aj výmenu kontajnerov. Konfigurácia a tajomstvá (heslá databáz, interný API kľúč, povolené originy pre CORS, adresa ML služby) sa odovzdávajú výhradne cez premenné prostredia zo súboru \texttt{.env}.
+
+Lokálne sa celý systém spustí príkazom \texttt{docker compose up -{}-build} a je dostupný na adrese \url{http://localhost:8080}.
+
+\section{Nasadenie na Azure}
+
+Produkčné prostredie beží v predplatnom Azure for Students na jednom virtuálnom stroji (VM) s Linuxom, na ktorom sa spúšťa ten istý súbor \texttt{docker-compose.yml} ako lokálne (obrázok~\ref{fig:deployment}). Spravované služby (App Service, Azure Database for PostgreSQL) sme zámerne nepoužili: databázy zostávajú kontajnermi, produkcia sa správa rovnako ako vývojové prostredie a celý systém sa zmestí do kreditu študentského predplatného. Celá infraštruktúra je vytvorená cez Azure CLI skriptom \nolinkurl{deploy/azure/create-vm.sh}, takže sa dá zopakovať jedným príkazom.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{figures/deployment.pdf}
+  \caption{Nasadenie v Azure}\label{fig:deployment}
+\end{figure}
+
+\subsection*{Infraštruktúra}
+
+Skript vytvorí v skupine prostriedkov \texttt{saloncrm-rg} tieto prostriedky (tabuľka~\ref{tab:azure}):
+
+\begin{table}[ht]
+  \centering
+  \caption{Prostriedky v Azure}\label{tab:azure}
+  \begin{tabular}{@{}lp{.6\textwidth}@{}}
+    \toprule
+    Prostriedok & Nastavenie \\
+    \midrule
+    Virtuálny stroj & \texttt{saloncrm-vm}, Ubuntu 24.04, veľkosť \texttt{Standard\_B2als\_v2} (2 vCPU, 4 GB RAM), disk 30 GB \\
+    Verejná IP adresa & statická, s DNS menom \nolinkurl{saloncrm-tuke.denmarkeast.cloudapp.azure.com} \\
+    Network Security Group & prichádzajúca komunikácia povolená iba na porty 22 (SSH), 8080 (\texttt{app}) a 8000 (\texttt{ml}) \\
+    Virtuálna sieť & predvolená sieť a podsieť pre VM \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Predplatné Azure for Students povoľuje nasadenie iba do niekoľkých európskych regiónov a malé veľkosti VM série B boli z nich dostupné len v regióne Denmark East, preto beží VM tam. Veľkosť so 4~GB pamäte (doplnená o 2~GB swap) stačí aj na zostavenie Docker obrazov priamo na VM. Pri prvom štarte VM nástroj cloud-init (\nolinkurl{deploy/azure/cloud-init.yml}) nainštaluje Docker s pluginom Compose, pridá používateľa \texttt{azureuser} do skupiny \texttt{docker} a naklonuje repozitár z GitHubu do jeho domovského adresára. Swap sa na VM nastavil ručne.
+
+\subsection*{Sieť a bezpečnosť}
+
+Frontend aj ML backend sú dostupné na rovnakom hostiteľovi, iba na rôznych portoch: \nolinkurl{http://saloncrm-tuke.denmarkeast.cloudapp.azure.com:8080} a \nolinkurl{:8000}. Prehliadač ich považuje za rovnaký web (\emph{site}), takže cookie \texttt{salon\_sid} so \texttt{SameSite=Lax} sa posiela obom backendom presne ako pri lokálnom vývoji a nie je potrebná vlastná doména. ML backend povoľuje CORS s prihlasovacími údajmi iba pre origin hlavného backendu na hostname VM.
+
+Porty databáz 5432 a 5433 sú síce v Docker Compose publikované na VM, ale Network Security Group ich zvonku blokuje. Databázy sú tak dostupné iba kontajnerom vo vnútornej sieti Docker Compose. ML backend volá interné API hlavného backendu priamo cez túto sieť (\nolinkurl{http://app:8080}) s kľúčom v hlavičke \texttt{X-Internal-Api-Key}. Prihlásenie na VM cez SSH je možné iba verejným kľúčom, heslo je vypnuté.
+
+\subsection*{Konfigurácia}
+
+Na VM sa mení iba súbor \texttt{.env}, ktorý nie je v repozitári. Obsahuje nové náhodne vygenerované heslá oboch databáz, interný API kľúč a heslá ukážkových účtov. Premenné \texttt{VITE\_ML\_API\_URL} a \texttt{CORS\_ORIGINS} ukazujú na hostname VM. Adresa ML služby sa zapisuje do frontendu pri zostavení obrazu, preto sa obraz \texttt{app} zostavuje priamo na VM s produkčnou adresou. Dáta databáz a natrénované modely sú v pomenovaných zväzkoch na disku VM, takže prežijú reštart aj nasadenie novej verzie.
+
+\subsection*{Postup nasadenia}
+
+\begin{enumerate}
+  \item prihlásenie do Azure (\texttt{az login}) a spustenie skriptu \nolinkurl{deploy/azure/create-vm.sh}, ktorý vytvorí skupinu prostriedkov, VM s verejnou IP adresou a DNS menom a pravidlá Network Security Group,
+  \item pripojenie na VM cez SSH a vytvorenie produkčného súboru \texttt{.env},
+  \item spustenie \texttt{docker compose up -d -{}-build}; migrácie databáz a ukážkové dáta sa aplikujú automaticky pri štarte kontajnerov.
+\end{enumerate}
+
+Nasadený systém je dostupný na adresách:
+
+\begin{itemize}
+  \item frontend a hlavné API: \nolinkurl{http://saloncrm-tuke.denmarkeast.cloudapp.azure.com:8080},
+  \item ML API: \nolinkurl{http://saloncrm-tuke.denmarkeast.cloudapp.azure.com:8000/ml/health}.
+\end{itemize}
+
+Po nasadení sme systém overili zvonku, z počítača mimo Azure: načítanie frontendu, prihlásenie administrátora, spustenie ML pipeline z dashboardu (čím sa overilo posielanie cookie \texttt{salon\_sid} na port 8000 aj nastavenie CORS) a nedostupnosť portov databáz 5432 a 5433.
+
+Aktualizácia na novú verziu je zatiaľ ručná: \texttt{git pull} a \texttt{docker compose up -d -{}-build} na VM. Kontinuálna integrácia (GitHub Actions) pri každej zmene zostaví a otestuje všetky časti systému a dá sa rozšíriť o automatické nasadenie cez SSH po úspešných testoch.
+
+Keď systém netreba, VM sa zastaví príkazom \texttt{az vm deallocate -g saloncrm-rg -n saloncrm-vm}. Za výpočtový výkon sa potom neplatí, disk aj dáta zostávajú a príkaz \texttt{az vm start} VM znova spustí. Celú infraštruktúru odstráni príkaz \texttt{az group delete -n saloncrm-rg}, ktorý zmaže skupinu prostriedkov so všetkým obsahom.
+
+Produkcia zatiaľ beží cez HTTP bez TLS, preto má cookie príznak \texttt{Secure} vypnutý. HTTPS by sa doplnilo reverzným proxy serverom (napr. Caddy) ako ďalším kontajnerom, ktorý by automaticky získal certifikát Let's Encrypt pre DNS meno VM.

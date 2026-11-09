@@ -4,6 +4,7 @@ CRM pre kozmetický salón — školský projekt (FEI TUKE). Online rezervácie,
 
 - Špecifikácia: [docs/SPEC.md](docs/SPEC.md)
 - Plán a stav: [docs/PLAN.md](docs/PLAN.md)
+- Semestrálna práca: [docs/latex/dist/thesis.pdf](docs/latex/dist/thesis.pdf)
 
 ## Architektúra
 

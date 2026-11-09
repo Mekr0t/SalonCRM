@@ -1,0 +1,28 @@
+flowchart TB
+    user["Používateľ<br/>prehliadač"]
+    dev["Člen tímu<br/>SSH kľúč"]
+
+    subgraph azure["Microsoft Azure"]
+        pip["Verejná IP + DNS label<br/>región Denmark East<br/>saloncrm-tuke.denmarkeast.cloudapp.azure.com"]
+        subgraph nsg["NSG 22, 8080, 8000"]
+            subgraph vm["VM Ubuntu 24.04"]
+                subgraph compose["Docker Compose"]
+                    app["Kontajner app<br/>ASP.NET Core + React<br/>:8080"]
+                    ml["Kontajner ml<br/>FastAPI + scikit-learn<br/>:8000"]
+                    dbmain[("db-main<br/>PostgreSQL 17<br/>salon_main")]
+                    dbml[("db-ml<br/>PostgreSQL 17<br/>salon_ml")]
+                    models[("zväzok ml-models<br/>natrénované modely")]
+                end
+            end
+        end
+    end
+
+    user -- "HTTP" --> pip
+    dev -- "SSH" --> pip
+    pip -- ":8080 frontend, /api/*" --> app
+    pip -- ":8000 /ml/*<br/>CORS, cookie salon_sid" --> ml
+    pip -- ":22 git pull,<br/>docker compose up" --> vm
+    ml -- "interné API app:8080<br/>X-Internal-Api-Key" --> app
+    app --> dbmain
+    ml --> dbml
+    ml --- models

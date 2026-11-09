@@ -71,10 +71,11 @@ Presná matica oprávnení: `docs/SPEC.md` §2.
 ```text
 /
 ├─ CLAUDE.md
-├─ docs/              SPEC.md, PLAN.md, bpmn/, obhajoba.md
+├─ docs/              SPEC.md, PLAN.md, bpmn/, diagrams/ (Mermaid), latex/ (semestrálna práca, PDF v latex/dist/)
 ├─ backend-main/      src/SalonCrm.Api, tests/SalonCrm.Api.Tests, Dockerfile (build context = koreň repa)
 ├─ backend-ml/        app/, alembic/, tests/, pyproject.toml, Dockerfile
 ├─ frontend/          Vite projekt
+├─ deploy/azure/      create-vm.sh (Azure CLI), cloud-init.yml
 ├─ docker-compose.yml
 ├─ .env.example
 └─ .gitattributes     (*.sh text eol=lf)
@@ -110,6 +111,14 @@ npm run build && npm run lint && npm test  # testy cez vstavaný Node.js runner,
 # Celý systém v Dockeri → http://localhost:8080
 docker compose up --build
 docker compose down -v        # zmaže aj dáta
+
+# Azure VM (návod v README): az login && ./deploy/azure/create-vm.sh
+# aktualizácia: ssh azureuser@saloncrm-tuke.denmarkeast.cloudapp.azure.com 'cd ~/SalonCRM && git pull && docker compose up -d --build'
+
+# Semestrálna práca (LaTeX) → docs/latex/dist/thesis.pdf (PDF je commitnuté)
+docker run --rm -u $(id -u):$(id -g) -v "$PWD/docs":/data minlag/mermaid-cli:11.4.2 \
+  -i diagrams/architecture.mmd -o latex/figures/architecture.pdf --pdfFit   # to isté pre deployment.mmd
+cd docs/latex && docker run --rm -u $(id -u):$(id -g) -v "$PWD":/thesis kpituke/latex:2025.09.4 make thesis
 ```
 
 ## Konvencie
